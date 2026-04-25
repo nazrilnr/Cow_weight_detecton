@@ -37,15 +37,11 @@ dependencies:
   path_provider: ^2.0.11
 
   image_picker: ^1.0.7
-  camera: ^0.10.5+5   # downgrade sedikit biar stabil
+  camera: ^0.10.5+5   
 
-  google_mlkit_object_detection: ^0.10.0
-  google_mlkit_text_recognition: ^0.10.0
-
-  image: ^4.1.7
-
-  opencv_dart: ^2.2.1+4
-
+  pdf: ^3.10.8
+  printing: ^5.12.0
+  
 dev_dependencies:
   flutter_test:
     sdk: flutter
