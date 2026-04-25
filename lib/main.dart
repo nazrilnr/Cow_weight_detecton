@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
-import 'screens/hitung_screen.dart';
-import 'screens/history_screen.dart';
+import 'screens/function/history_screen.dart';
+import 'screens/function/hitung_screen.dart';
 
 void main() {
   runApp(MyApp());
 }
 
 class MyApp extends StatefulWidget {
+  const MyApp({super.key});
+
   @override
   _MyAppState createState() => _MyAppState();
 }

@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
-import '../database/db_helper.dart';
+import '../../database/db_helper.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 
 class HistoryScreen extends StatefulWidget {
+  const HistoryScreen({super.key});
+
   @override
   _HistoryScreenState createState() => _HistoryScreenState();
 }

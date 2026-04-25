@@ -5,7 +5,7 @@ import 'dart:math';
 class MeasurementScreen extends StatefulWidget {
   final File image;
 
-  MeasurementScreen({required this.image});
+  const MeasurementScreen({super.key, required this.image});
 
   @override
   _MeasurementScreenState createState() => _MeasurementScreenState();
