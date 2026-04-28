@@ -96,30 +96,78 @@ class _MeasurementScreenState extends State<MeasurementScreen> {
     });
   }
 
-  // ================= NEXT =================
+  // ================= NEXT / LANJUT =================
   void handleNext() {
     if (isKalibrasi) {
       if (kalibrasi.length < 2) return;
 
       double pixel = getDistance(kalibrasi);
-
       TextEditingController cmController = TextEditingController();
 
       showDialog(
         context: context,
         builder: (_) => AlertDialog(
-          title: const Text("Kalibrasi"),
-          content: TextField(
-            controller: cmController,
-            keyboardType: TextInputType.number,
-            decoration:
-                const InputDecoration(labelText: "Masukkan panjang (cm)"),
+          backgroundColor: Colors.white,
+          surfaceTintColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text("Batal"),
+          title: const Text(
+            "Kalibrasi",
+            style: TextStyle(
+              color: _colorDarkTeal,
+              fontWeight: FontWeight.bold,
             ),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                "Masukkan Panjang Aktual (cm)",
+                style: TextStyle(
+                  color: _colorDarkTeal,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
+                ),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: cmController,
+                keyboardType: TextInputType.number,
+                style: const TextStyle(color: _colorDarkTeal),
+                decoration: InputDecoration(
+                  filled: true,
+                  fillColor: _colorBrightCyan.withOpacity(0.2),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          actionsAlignment: MainAxisAlignment.center,
+          actions: [
+            OutlinedButton(
+              onPressed: () => Navigator.pop(context),
+              style: OutlinedButton.styleFrom(
+                side: const BorderSide(color: _colorBrightCyan, width: 1.5),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              ),
+              child: const Text(
+                "Batal",
+                style: TextStyle(color: _colorBrightCyan),
+              ),
+            ),
+            const SizedBox(width: 8),
             ElevatedButton(
               onPressed: () {
                 double cm = double.tryParse(cmController.text) ?? 0;
@@ -133,6 +181,15 @@ class _MeasurementScreenState extends State<MeasurementScreen> {
 
                 Navigator.pop(context);
               },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _colorBrightCyan,
+                foregroundColor: Colors.white,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+              ),
               child: const Text("OK"),
             )
           ],
@@ -165,51 +222,76 @@ class _MeasurementScreenState extends State<MeasurementScreen> {
     }
 
     return Scaffold(
+      backgroundColor: Colors.white,
       appBar: AppBar(
-        title: Text(isKalibrasi
-            ? "Kalibrasi"
-            : widget.isCurveMode
-                ? "Ukur Lingkar Dada"
-                : "Ukur Panjang"),
         backgroundColor: _colorDarkTeal,
+        elevation: 0,
+        automaticallyImplyLeading: false,
+        leadingWidth: 120,
+        leading: GestureDetector(
+          onTap: () => Navigator.pop(context),
+          child: const Row(
+            children: [
+              SizedBox(width: 16),
+              Icon(Icons.arrow_back_ios, color: Colors.white, size: 14),
+              Text(
+                "Riwayat",
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
       body: Column(
         children: [
           Expanded(
-            child: InteractiveViewer(
-              transformationController: _controller,
-              maxScale: 5,
-              minScale: 1,
-              child: GestureDetector(
-                onTapDown: handleTap,
-                child: Stack(
-                  key: _imageKey,
-                  clipBehavior: Clip.none,
-                  children: [
-                    Center(child: Image.file(widget.image)),
-
-                    // 🔴 KALIBRASI
-                    if (kalibrasi.length >= 2)
-                      CustomPaint(
-                        painter: LinePainter(kalibrasi, Colors.red),
-                        size: Size.infinite,
+            child: Padding(
+              padding: const EdgeInsets.all(16.0), // Jarak tepi gambar
+              child: InteractiveViewer(
+                transformationController: _controller,
+                maxScale: 5,
+                minScale: 1,
+                child: GestureDetector(
+                  onTapDown: handleTap,
+                  child: Stack(
+                    key: _imageKey,
+                    clipBehavior: Clip.none,
+                    children: [
+                      // Gambar dengan rounded corners
+                      Center(
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          child: Image.file(widget.image),
+                        ),
                       ),
 
-                    // 🔵 UKUR
-                    if (ukur.length >= 2)
-                      CustomPaint(
-                        painter: LinePainter(ukur, Colors.blue),
-                        size: Size.infinite,
-                      ),
+                      // 🔴 KALIBRASI
+                      if (kalibrasi.length >= 2)
+                        CustomPaint(
+                          painter: LinePainter(kalibrasi, Colors.red),
+                          size: Size.infinite,
+                        ),
 
-                    // 🔴 TITIK
-                    ...kalibrasi.asMap().entries.map(
-                        (e) => titik(e.value, Colors.red, e.key, true)),
+                      // 🔵 UKUR
+                      if (ukur.length >= 2)
+                        CustomPaint(
+                          painter: LinePainter(ukur, Colors.blue),
+                          size: Size.infinite,
+                        ),
 
-                    // 🔵 TITIK
-                    ...ukur.asMap().entries.map(
-                        (e) => titik(e.value, Colors.blue, e.key, false)),
-                  ],
+                      // 🔴 TITIK
+                      ...kalibrasi.asMap().entries.map(
+                          (e) => titik(e.value, Colors.red, e.key, true)),
+
+                      // 🔵 TITIK
+                      ...ukur.asMap().entries.map(
+                          (e) => titik(e.value, Colors.blue, e.key, false)),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -218,38 +300,75 @@ class _MeasurementScreenState extends State<MeasurementScreen> {
           // 🔥 PREVIEW
           if (!isKalibrasi)
             Padding(
-              padding: const EdgeInsets.all(8),
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
               child: Text(
                 cmPreview == null
                     ? "Panjang: -"
                     : "Panjang: ${cmPreview.toStringAsFixed(2)} cm",
                 style: const TextStyle(
-                    fontSize: 16, fontWeight: FontWeight.bold),
+                    fontSize: 16, fontWeight: FontWeight.bold, color: _colorDarkTeal),
               ),
             ),
 
-          // 🔘 BUTTON
-          Row(
-            children: [
-              Expanded(
-                child: TextButton(
-                  onPressed: resetPoints,
-                  child: const Text("Reset"),
+          // 🔘 BUTTONS
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: resetPoints,
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: _colorBrightCyan, width: 1.5),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                    ),
+                    child: const Text(
+                      "Reset",
+                      style: TextStyle(color: _colorBrightCyan, fontWeight: FontWeight.w600),
+                    ),
+                  ),
                 ),
-              ),
-              Expanded(
-                child: TextButton(
-                  onPressed: undoPoint,
-                  child: const Text("Undo"),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: undoPoint,
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: _colorBrightCyan, width: 1.5),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                    ),
+                    child: const Text(
+                      "Undo",
+                      style: TextStyle(color: _colorBrightCyan, fontWeight: FontWeight.w600),
+                    ),
+                  ),
                 ),
-              ),
-              Expanded(
-                child: ElevatedButton(
-                  onPressed: handleNext,
-                  child: Text(isKalibrasi ? "Next" : "Selesai"),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: handleNext,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _colorBrightCyan,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                    ),
+                    child: const Text(
+                      "Lanjut",
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ],
       ),

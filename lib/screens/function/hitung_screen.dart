@@ -6,6 +6,7 @@ import 'measurement_screen.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 
+
 // ================= WARNA TEMA =================
 const Color _colorDarkTeal = Color(0xFF1C7482);
 const Color _colorLightCyan = Color(0xFFD4F9F9);
@@ -27,6 +28,10 @@ class _HitungScreenState extends State<HitungScreen> {
   final TextEditingController panjangController = TextEditingController();
 
   double hasil = 0;
+
+  // 🔥 Tambahkan variabel untuk menyimpan file foto
+  File? fotoDepan;
+  File? fotoSamping;
 
   // ================= VALIDATOR =================
   String? validateText(String? value) {
@@ -84,12 +89,23 @@ class _HitungScreenState extends State<HitungScreen> {
         await ImagePicker().pickImage(source: ImageSource.gallery);
 
     if (picked != null) {
+      File imageFile = File(picked.path);
+
+      // 🔥 Simpan gambar yang dipilih ke state agar UI terupdate
+      setState(() {
+        if (isLingkar) {
+          fotoDepan = imageFile;
+        } else {
+          fotoSamping = imageFile;
+        }
+      });
+
       final result = await Navigator.push(
         context,
         MaterialPageRoute(
           builder: (_) => MeasurementScreen(
-            image: File(picked.path),
-            isCurveMode: isLingkar, // 🔥 FIX UTAMA
+            image: imageFile,
+            isCurveMode: isLingkar,
           ),
         ),
       );
@@ -151,12 +167,19 @@ class _HitungScreenState extends State<HitungScreen> {
                   validator: validateNumber,
                 ),
                 const SizedBox(height: 12),
-                _PhotoUploadBox(
-                  title: "Tambahkan Foto Tampak Depan",
-                  subtitle:
-                      "Pastikan untuk mengambil foto dengan\npenerangan yang jelas dan foto di ambil dalam\njarak 2 meter",
-                  onTap: () => openMeasurement(true),
-                ),
+                
+                // 🔥 Kondisi jika fotoDepan ada, tampilkan gambarnya
+                fotoDepan == null
+                    ? _PhotoUploadBox(
+                        title: "Tambahkan Foto Tampak Depan",
+                        subtitle:
+                            "Pastikan untuk mengambil foto dengan\npenerangan yang jelas dan foto di ambil dalam\njarak 2 meter",
+                        onTap: () => openMeasurement(true),
+                      )
+                    : _ImageDisplayBox(
+                        image: fotoDepan!,
+                        onTap: () => openMeasurement(true),
+                      ),
 
                 const SizedBox(height: 20),
 
@@ -168,12 +191,19 @@ class _HitungScreenState extends State<HitungScreen> {
                   validator: validateNumber,
                 ),
                 const SizedBox(height: 12),
-                _PhotoUploadBox(
-                  title: "Tambahkan Foto Tampak Samping",
-                  subtitle:
-                      "Pastikan untuk mengambil foto dengan\npenerangan yang jelas dan foto di ambil dalam\njarak 2 meter",
-                  onTap: () => openMeasurement(false),
-                ),
+
+                // 🔥 Kondisi jika fotoSamping ada, tampilkan gambarnya
+                fotoSamping == null
+                    ? _PhotoUploadBox(
+                        title: "Tambahkan Foto Tampak Samping",
+                        subtitle:
+                            "Pastikan untuk mengambil foto dengan\npenerangan yang jelas dan foto di ambil dalam\njarak 2 meter",
+                        onTap: () => openMeasurement(false),
+                      )
+                    : _ImageDisplayBox(
+                        image: fotoSamping!,
+                        onTap: () => openMeasurement(false),
+                      ),
 
                 const SizedBox(height: 32),
 
@@ -245,7 +275,24 @@ class _HitungScreenState extends State<HitungScreen> {
                     height: 48,
                     child: OutlinedButton(
                       onPressed: simpanData,
-                      child: const Text("Simpan"),
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(
+                          color: _colorBrightCyan, // Warna garis tepi cyan
+                          width: 1.5, // Ketebalan garis
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8), // Sudut melengkung
+                        ),
+                        backgroundColor: Colors.transparent, // Background transparan
+                      ),
+                      child: const Text(
+                        "Simpan",
+                        style: TextStyle(
+                          color: _colorBrightCyan, // Warna text cyan
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600, // Text sedikit tebal
+                        ),
+                      ),
                     ),
                   ),
                 ],
@@ -291,6 +338,10 @@ class _CustomInputField extends StatelessWidget {
           validator: validator,
           decoration: InputDecoration(
             hintText: hint,
+            hintStyle: const TextStyle(
+              color: _colorBrightCyan, 
+              fontSize: 14, 
+            ),
             filled: true,
             fillColor: _colorLightCyan,
             border: OutlineInputBorder(
@@ -304,7 +355,7 @@ class _CustomInputField extends StatelessWidget {
   }
 }
 
-// ================= FOTO =================
+// ================= FOTO UPLOAD BOX (KOSONG) =================
 class _PhotoUploadBox extends StatelessWidget {
   final String title;
   final String subtitle;
@@ -329,18 +380,64 @@ class _PhotoUploadBox extends StatelessWidget {
         ),
         child: Column(
           children: [
-            const Icon(Icons.camera_alt_outlined,
-                color: _colorDarkTeal),
+            const Icon(Icons.camera_alt_outlined, color: _colorDarkTeal),
             const SizedBox(height: 8),
             Text(title,
                 style: const TextStyle(
-                    color: _colorDarkTeal,
-                    fontWeight: FontWeight.bold)),
+                    color: _colorDarkTeal, fontWeight: FontWeight.bold)),
             Text(subtitle,
                 textAlign: TextAlign.center,
                 style: const TextStyle(fontSize: 11)),
           ],
         ),
+      ),
+    );
+  }
+}
+
+// 🔥 ================= FOTO TERPILIH (TERISI) =================
+class _ImageDisplayBox extends StatelessWidget {
+  final File image;
+  final VoidCallback onTap;
+
+  const _ImageDisplayBox({
+    required this.image,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Stack(
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: Image.file(
+              image,
+              width: double.infinity,
+              height: 200, // Tinggi dari kotak gambarnya
+              fit: BoxFit.cover,
+            ),
+          ),
+          // Tambahkan icon 'Edit' kecil di pojok kanan atas
+          Positioned(
+            top: 10,
+            right: 10,
+            child: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.black.withOpacity(0.6),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.edit,
+                color: Colors.white,
+                size: 20,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -367,11 +464,9 @@ class _ResultItemBox extends StatelessWidget {
       children: [
         Text("$value $unit",
             style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                color: _colorDarkTeal)),
+                fontWeight: FontWeight.bold, color: _colorDarkTeal)),
         const SizedBox(height: 4),
-        Text(label,
-            style: const TextStyle(fontSize: 11)),
+        Text(label, style: const TextStyle(fontSize: 11)),
       ],
     );
   }

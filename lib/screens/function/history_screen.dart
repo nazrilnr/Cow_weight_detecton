@@ -251,6 +251,14 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
                       return GestureDetector(
                         onTap: isSelecting ? () => toggleSelect(id) : null,
+                        onLongPress: () {
+                          if (!isSelecting) {
+                            setState(() {
+                              isSelecting = true;
+                              selectedIds.add(id); // Otomatis memilih card yang ditekan
+                            });
+                          }
+                        },
                         child: Container(
                           margin: const EdgeInsets.only(bottom: 24),
                           color: Colors.transparent,
@@ -387,13 +395,13 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
-                      blurRadius: 10,
-                      offset: const Offset(0, -5),
-                    )
-                  ],
+                  // boxShadow: [
+                  //   BoxShadow(
+                  //     color: Colors.black.withOpacity(0.05),
+                  //     blurRadius: 10,
+                  //     offset: const Offset(0, -5),
+                  //   )
+                  // ],
                 ),
                 child: Row(
                   children: [
