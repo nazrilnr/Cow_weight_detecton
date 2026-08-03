@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../database/db_helper.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
+import '../../models/sapi_model.dart'; // 🔥 Import SapiModel
 
 // ================= WARNA TEMA =================
 const Color _colorDarkTeal = Color(0xFF1C7482);
@@ -17,8 +18,9 @@ class HistoryScreen extends StatefulWidget {
 }
 
 class _HistoryScreenState extends State<HistoryScreen> {
-  List<Map<String, dynamic>> data = [];
-  List<Map<String, dynamic>> filteredData = [];
+  // 🔥 Diubah ke List<SapiModel>
+  List<SapiModel> data = [];
+  List<SapiModel> filteredData = [];
 
   bool isSelecting = false;
   Set<int> selectedIds = {};
@@ -34,7 +36,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
   // ================= LOAD =================
   void loadData() async {
     final db = DBHelper();
-    final result = await db.getData();
+    // 🔥 Panggil getSapiList() bukan getData()
+    final result = await db.getSapiList();
+
+    if (!mounted) return;
 
     setState(() {
       data = result;
@@ -43,8 +48,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
   }
 
   // ================= FORMAT ANGKA & TANGGAL =================
-  String formatNumber(dynamic value) {
-    return double.parse(value.toString()).toStringAsFixed(0);
+  String formatNumber(double value) {
+    return value.toStringAsFixed(0);
   }
 
   String formatDate(String dateString) {
@@ -63,7 +68,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
   // ================= SEARCH =================
   void search(String keyword) {
     final results = data.where((item) {
-      return item['nama_sapi']
+      return item.namaSapi
           .toLowerCase()
           .contains(keyword.toLowerCase());
     }).toList();
@@ -82,7 +87,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
         selectedIds.add(id);
       }
       
-      // Jika tidak ada yang dipilih lagi, otomatis keluar dari mode select
       if (selectedIds.isEmpty) {
         isSelecting = false;
       }
@@ -91,7 +95,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
   void selectAll() {
     setState(() {
-      selectedIds = filteredData.map((e) => e['id'] as int).toSet();
+      selectedIds = filteredData
+          .where((e) => e.id != null)
+          .map((e) => e.id!)
+          .toSet();
     });
   }
 
@@ -105,7 +112,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
   // ================= EXPORT PDF =================
   Future<void> exportData() async {
     final exportList =
-        data.where((e) => selectedIds.contains(e['id'])).toList();
+        data.where((e) => e.id != null && selectedIds.contains(e.id)).toList();
 
     if (exportList.isEmpty) return;
 
@@ -122,10 +129,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
               headers: ["Nama", "Lingkar", "Panjang", "Berat"],
               data: exportList.map((item) {
                 return [
-                  item['nama_sapi'],
-                  "${formatNumber(item['lingkar_dada'])} cm",
-                  "${formatNumber(item['panjang_badan'])} cm",
-                  "${formatNumber(item['berat'])} kg",
+                  item.namaSapi,
+                  "${formatNumber(item.lingkarDada)} cm",
+                  "${formatNumber(item.panjangBadan)} cm",
+                  "${formatNumber(item.berat)} kg",
                 ];
               }).toList(),
             ),
@@ -242,9 +249,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
                     itemCount: filteredData.length,
                     itemBuilder: (context, index) {
                       final item = filteredData[index];
-                      final id = item['id'];
+                      final id = item.id ?? 0;
                       final isSelected = selectedIds.contains(id);
-                      final tanggalStr = item['tanggal'] ?? "";
+                      final tanggalStr = item.tanggal;
 
                       const String dummyAkurasi = "95";
                       const String dummyJenis = "Limosin"; 
@@ -255,7 +262,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                           if (!isSelecting) {
                             setState(() {
                               isSelecting = true;
-                              selectedIds.add(id); // Otomatis memilih card yang ditekan
+                              selectedIds.add(id);
                             });
                           }
                         },
@@ -265,7 +272,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
                           child: Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              // Checkbox saat mode Pilih
                               if (isSelecting)
                                 Padding(
                                   padding: const EdgeInsets.only(top: 10, right: 12),
@@ -281,14 +287,12 @@ class _HistoryScreenState extends State<HistoryScreen> {
                                   ),
                                 ),
 
-                              // Konten Riwayat
                               Expanded(
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    // Header: Nama & Tanggal
                                     Text(
-                                      item['nama_sapi'],
+                                      item.namaSapi,
                                       style: const TextStyle(
                                         color: Colors.black87,
                                         fontSize: 16,
@@ -305,7 +309,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
                                     ),
                                     const SizedBox(height: 12),
 
-                                    // Box Hijau Muda (Data Grid)
                                     Container(
                                       padding: const EdgeInsets.symmetric(
                                           horizontal: 16, vertical: 16),
@@ -324,7 +327,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                                             children: [
                                               Expanded(
                                                 child: _ResultItemBox(
-                                                  value: formatNumber(item['berat']),
+                                                  value: formatNumber(item.berat),
                                                   unit: "kg",
                                                   label: "Berat Badan",
                                                   alignment: CrossAxisAlignment.start,
@@ -332,7 +335,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                                               ),
                                               Expanded(
                                                 child: _ResultItemBox(
-                                                  value: formatNumber(item['lingkar_dada']),
+                                                  value: formatNumber(item.lingkarDada),
                                                   unit: "cm",
                                                   label: "Lingkar Dada",
                                                   alignment: CrossAxisAlignment.center,
@@ -340,7 +343,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                                               ),
                                               Expanded(
                                                 child: _ResultItemBox(
-                                                  value: formatNumber(item['panjang_badan']),
+                                                  value: formatNumber(item.panjangBadan),
                                                   unit: "cm",
                                                   label: "Panjang",
                                                   alignment: CrossAxisAlignment.end,
@@ -388,24 +391,15 @@ class _HistoryScreenState extends State<HistoryScreen> {
         ],
       ),
       
-      // ================= TOMBOL BAWAH (DIPINDAH KE SINI AGAR TIDAK KETUMPUK) =================
       bottomNavigationBar: isSelecting
           ? SafeArea(
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                decoration: BoxDecoration(
+                decoration: const BoxDecoration(
                   color: Colors.white,
-                  // boxShadow: [
-                  //   BoxShadow(
-                  //     color: Colors.black.withOpacity(0.05),
-                  //     blurRadius: 10,
-                  //     offset: const Offset(0, -5),
-                  //   )
-                  // ],
                 ),
                 child: Row(
                   children: [
-                    // Tombol Pilih Semua
                     Expanded(
                       child: SizedBox(
                         height: 48,
@@ -439,7 +433,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
                     ),
                     const SizedBox(width: 12),
                     
-                    // Tombol Export PDF
                     Expanded(
                       child: SizedBox(
                         height: 48,

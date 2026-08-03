@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import '../../utils/calculator.dart';
 import '../../database/db_helper.dart';
+import '../../models/sapi_model.dart'; // 🔥 Import SapiModel
 import 'measurement_screen.dart';
 
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
-
 
 // ================= WARNA TEMA =================
 const Color _colorDarkTeal = Color(0xFF1C7482);
@@ -29,7 +29,6 @@ class _HitungScreenState extends State<HitungScreen> {
 
   double hasil = 0;
 
-  // 🔥 Tambahkan variabel untuk menyimpan file foto
   File? fotoDepan;
   File? fotoSamping;
 
@@ -57,7 +56,7 @@ class _HitungScreenState extends State<HitungScreen> {
     });
   }
 
-  // ================= SIMPAN =================
+  // ================= SIMPAN (SAPI MODEL) =================
   void simpanData() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -68,15 +67,19 @@ class _HitungScreenState extends State<HitungScreen> {
       return;
     }
 
-    DBHelper db = DBHelper();
+    // 🔥 Menggunakan SapiModel Object
+    final sapiBaru = SapiModel(
+      namaSapi: namaController.text,
+      lingkarDada: double.parse(lingkarController.text),
+      panjangBadan: double.parse(panjangController.text),
+      berat: hasil,
+      tanggal: DateTime.now().toIso8601String(),
+    );
 
-    await db.insertData({
-      'nama_sapi': namaController.text,
-      'lingkar_dada': double.parse(lingkarController.text),
-      'panjang_badan': double.parse(panjangController.text),
-      'berat': hasil,
-      'tanggal': DateTime.now().toString(),
-    });
+    DBHelper db = DBHelper();
+    await db.insertSapi(sapiBaru); // 🔥 Panggil insertSapi
+
+    if (!mounted) return;
 
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text("Data tersimpan")),
@@ -91,7 +94,6 @@ class _HitungScreenState extends State<HitungScreen> {
     if (picked != null) {
       File imageFile = File(picked.path);
 
-      // 🔥 Simpan gambar yang dipilih ke state agar UI terupdate
       setState(() {
         if (isLingkar) {
           fotoDepan = imageFile;
@@ -168,7 +170,6 @@ class _HitungScreenState extends State<HitungScreen> {
                 ),
                 const SizedBox(height: 12),
                 
-                // 🔥 Kondisi jika fotoDepan ada, tampilkan gambarnya
                 fotoDepan == null
                     ? _PhotoUploadBox(
                         title: "Tambahkan Foto Tampak Depan",
@@ -192,7 +193,6 @@ class _HitungScreenState extends State<HitungScreen> {
                 ),
                 const SizedBox(height: 12),
 
-                // 🔥 Kondisi jika fotoSamping ada, tampilkan gambarnya
                 fotoSamping == null
                     ? _PhotoUploadBox(
                         title: "Tambahkan Foto Tampak Samping",
@@ -277,20 +277,20 @@ class _HitungScreenState extends State<HitungScreen> {
                       onPressed: simpanData,
                       style: OutlinedButton.styleFrom(
                         side: const BorderSide(
-                          color: _colorBrightCyan, // Warna garis tepi cyan
-                          width: 1.5, // Ketebalan garis
+                          color: _colorBrightCyan,
+                          width: 1.5,
                         ),
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8), // Sudut melengkung
+                          borderRadius: BorderRadius.circular(8),
                         ),
-                        backgroundColor: Colors.transparent, // Background transparan
+                        backgroundColor: Colors.transparent,
                       ),
                       child: const Text(
                         "Simpan",
                         style: TextStyle(
-                          color: _colorBrightCyan, // Warna text cyan
+                          color: _colorBrightCyan,
                           fontSize: 16,
-                          fontWeight: FontWeight.w600, // Text sedikit tebal
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                     ),
@@ -355,7 +355,7 @@ class _CustomInputField extends StatelessWidget {
   }
 }
 
-// ================= FOTO UPLOAD BOX (KOSONG) =================
+// ================= FOTO UPLOAD BOX =================
 class _PhotoUploadBox extends StatelessWidget {
   final String title;
   final String subtitle;
@@ -395,7 +395,7 @@ class _PhotoUploadBox extends StatelessWidget {
   }
 }
 
-// 🔥 ================= FOTO TERPILIH (TERISI) =================
+// ================= FOTO TERPILIH =================
 class _ImageDisplayBox extends StatelessWidget {
   final File image;
   final VoidCallback onTap;
@@ -416,11 +416,10 @@ class _ImageDisplayBox extends StatelessWidget {
             child: Image.file(
               image,
               width: double.infinity,
-              height: 200, // Tinggi dari kotak gambarnya
+              height: 200,
               fit: BoxFit.cover,
             ),
           ),
-          // Tambahkan icon 'Edit' kecil di pojok kanan atas
           Positioned(
             top: 10,
             right: 10,

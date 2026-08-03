@@ -1,5 +1,6 @@
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
+import '../models/sapi_model.dart';
 
 class DBHelper {
   static Database? _database;
@@ -31,6 +32,22 @@ class DBHelper {
     );
   }
 
+  // 🔹 Simpan data menggunakan SapiModel
+  Future<void> insertSapi(SapiModel sapi) async {
+    final db = await database;
+    await db.insert('history', sapi.toMap());
+  }
+
+  // 🔹 Ambil data dalam bentuk List<SapiModel>
+  Future<List<SapiModel>> getSapiList() async {
+    final db = await database;
+    final List<Map<String, dynamic>> maps = await db.query('history', orderBy: 'id DESC');
+    return maps.map((map) => SapiModel.fromMap(map)).toList();
+  }
+
+  // -------------------------------------------------------------
+  // ⚠️ METHOD LAMA (Dibiarkan ada agar tidak error jika dipanggil)
+  // -------------------------------------------------------------
   Future<void> insertData(Map<String, dynamic> data) async {
     final db = await database;
     await db.insert('history', data);
