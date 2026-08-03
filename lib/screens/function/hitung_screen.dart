@@ -10,7 +10,7 @@ import 'dart:io';
 // ================= WARNA TEMA =================
 const Color _colorDarkTeal = Color(0xFF1C7482);
 const Color _colorLightCyan = Color(0xFFD4F9F9);
-const Color _colorMediumTeal = Color(0xFF1BAAB4);
+// const Color _colorMediumTeal = Color(0xFF1BAAB4);
 const Color _colorBrightCyan = Color(0xFF38D0D8);
 
 class HitungScreen extends StatefulWidget {
