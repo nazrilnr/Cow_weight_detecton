@@ -57,7 +57,7 @@ class _HitungScreenState extends State<HitungScreen> {
   }
 
   // ================= SIMPAN (SAPI MODEL) =================
-  void simpanData() async {
+void simpanData() async {
     if (!_formKey.currentState!.validate()) return;
 
     if (hasil == 0) {
@@ -67,7 +67,6 @@ class _HitungScreenState extends State<HitungScreen> {
       return;
     }
 
-    // 🔥 Menggunakan SapiModel Object
     final sapiBaru = SapiModel(
       namaSapi: namaController.text,
       lingkarDada: double.parse(lingkarController.text),
@@ -81,8 +80,71 @@ class _HitungScreenState extends State<HitungScreen> {
 
     if (!mounted) return;
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Data tersimpan")),
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: Colors.white,
+          surfaceTintColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: const Column(
+            children: [
+              Icon(
+                Icons.check_circle_outline,
+                color: _colorDarkTeal,
+                size: 56,
+              ),
+              SizedBox(height: 12),
+              Text(
+                "Berhasil Disimpan",
+                style: TextStyle(
+                  color: _colorDarkTeal,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+          content: const Text(
+            "Data pengukuran sapi telah berhasil tersimpan ke dalam riwayat.",
+            style: TextStyle(
+              color: Colors.black87,
+              fontSize: 14,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          actionsAlignment: MainAxisAlignment.center,
+          actions: [
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () {
+                  Navigator.pop(context); // Tutup Dialog
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _colorBrightCyan,
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+                child: const Text(
+                  "OK",
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 
