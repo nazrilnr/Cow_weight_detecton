@@ -30,6 +30,12 @@ class _MeasurementScreenState extends State<MeasurementScreen> {
   final TransformationController _controller = TransformationController();
   final GlobalKey _imageKey = GlobalKey();
 
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
   // ================= GARIS LURUS =================
   double getDistance(List<Offset> p) {
     return sqrt(pow(p[0].dx - p[1].dx, 2) + pow(p[0].dy - p[1].dy, 2));
@@ -47,28 +53,23 @@ class _MeasurementScreenState extends State<MeasurementScreen> {
     return total;
   }
 
-  // ================= CONVERT =================
-  Offset toImageSpace(Offset localPosition) {
-    final Matrix4 inverse = Matrix4.inverted(_controller.value);
-    return MatrixUtils.transformPoint(inverse, localPosition);
-  }
-
-  // ================= TAP =================
+  // ================= TAP (PRESISI TITIK GAMBAR) =================
   void handleTap(TapDownDetails details) {
-    final RenderBox box =
-        _imageKey.currentContext!.findRenderObject() as RenderBox;
+    final RenderBox? box =
+        _imageKey.currentContext?.findRenderObject() as RenderBox?;
 
-    final local = box.globalToLocal(details.globalPosition);
-    final corrected = toImageSpace(local);
+    if (box == null) return;
+
+    final Offset localPos = box.globalToLocal(details.globalPosition);
 
     setState(() {
       if (isKalibrasi) {
-        if (kalibrasi.length < 2) kalibrasi.add(corrected);
+        if (kalibrasi.length < 2) kalibrasi.add(localPos);
       } else {
         if (widget.isCurveMode) {
-          ukur.add(corrected); // 🔥 MULTI TITIK
+          ukur.add(localPos); // 🔥 MULTI TITIK
         } else {
-          if (ukur.length < 2) ukur.add(corrected); // 🔥 GARIS LURUS
+          if (ukur.length < 2) ukur.add(localPos); // 🔥 GARIS LURUS
         }
       }
     });
@@ -235,7 +236,7 @@ class _MeasurementScreenState extends State<MeasurementScreen> {
               SizedBox(width: 16),
               Icon(Icons.arrow_back_ios, color: Colors.white, size: 14),
               Text(
-                "Riwayat",
+                "Kembali",
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: 14,
@@ -248,63 +249,115 @@ class _MeasurementScreenState extends State<MeasurementScreen> {
       ),
       body: Column(
         children: [
+          // 💡 BANNER INSTRUKSI DINAMIS
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            margin: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+            decoration: BoxDecoration(
+              color: isKalibrasi
+                  ? Colors.amber.shade50
+                  : _colorBrightCyan.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                color: isKalibrasi
+                    ? Colors.amber.shade400
+                    : _colorBrightCyan,
+                width: 1,
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  isKalibrasi ? Icons.straighten : Icons.ads_click,
+                  color: isKalibrasi ? Colors.amber.shade900 : _colorDarkTeal,
+                  size: 22,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    isKalibrasi
+                        ? "Langkah 1: Tandai 2 titik acuan kalibrasi pada objek"
+                        : widget.isCurveMode
+                            ? "Langkah 2: Buat titik-titik melingkar mengelilingi dada sapi"
+                            : "Langkah 2: Tandai 2 titik panjang badan sapi (bahu ke pinggul)",
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: isKalibrasi
+                          ? Colors.amber.shade900
+                          : _colorDarkTeal,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
           Expanded(
             child: Padding(
-              padding: const EdgeInsets.all(16.0), // Jarak tepi gambar
-              child: InteractiveViewer(
-                transformationController: _controller,
-                maxScale: 5,
-                minScale: 1,
-                child: GestureDetector(
-                  onTapDown: handleTap,
-                  child: Stack(
-                    key: _imageKey,
-                    clipBehavior: Clip.none,
-                    children: [
-                      // Gambar dengan rounded corners
-                      Center(
-                        child: ClipRRect(
+              padding: const EdgeInsets.all(16.0),
+              child: Center(
+                child: InteractiveViewer(
+                  transformationController: _controller,
+                  maxScale: 5,
+                  minScale: 1,
+                  child: GestureDetector(
+                    onTapDown: handleTap,
+                    child: Stack(
+                      key: _imageKey,
+                      clipBehavior: Clip.none,
+                      children: [
+                        // Gambar utama
+                        ClipRRect(
                           borderRadius: BorderRadius.circular(12),
-                          child: Image.file(widget.image),
-                        ),
-                      ),
-
-                      // 🔴 KALIBRASI
-                      if (kalibrasi.length >= 2)
-                        CustomPaint(
-                          painter: LinePainter(kalibrasi, Colors.red),
-                          size: Size.infinite,
+                          child: Image.file(
+                            widget.image,
+                            fit: BoxFit.contain,
+                          ),
                         ),
 
-                      // 🔵 UKUR
-                      if (ukur.length >= 2)
-                        CustomPaint(
-                          painter: LinePainter(ukur, Colors.blue),
-                          size: Size.infinite,
-                        ),
+                        // 🔴 KALIBRASI
+                        if (kalibrasi.length >= 2)
+                          Positioned.fill(
+                            child: CustomPaint(
+                              painter: LinePainter(kalibrasi, Colors.red),
+                            ),
+                          ),
 
-                      // 🔴 TITIK
-                      ...kalibrasi.asMap().entries.map(
-                          (e) => titik(e.value, Colors.red, e.key, true)),
+                        // 🔵 UKUR
+                        if (ukur.length >= 2)
+                          Positioned.fill(
+                            child: CustomPaint(
+                              painter: LinePainter(ukur, Colors.blue),
+                            ),
+                          ),
 
-                      // 🔵 TITIK
-                      ...ukur.asMap().entries.map(
-                          (e) => titik(e.value, Colors.blue, e.key, false)),
-                    ],
+                        // 🔴 TITIK
+                        ...kalibrasi.asMap().entries.map(
+                            (e) => titik(e.value, Colors.red, e.key, true)),
+
+                        // 🔵 TITIK
+                        ...ukur.asMap().entries.map(
+                            (e) => titik(e.value, Colors.blue, e.key, false)),
+                      ],
+                    ),
                   ),
                 ),
               ),
             ),
           ),
 
-          // 🔥 PREVIEW
+          // 🔥 PREVIEW HASIL SEMENTARA
           if (!isKalibrasi)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16.0),
               child: Text(
                 cmPreview == null
-                    ? "Panjang: -"
-                    : "Panjang: ${cmPreview.toStringAsFixed(2)} cm",
+                    ? "Hasil: -"
+                    : widget.isCurveMode
+                        ? "Lingkar Dada: ${cmPreview.toStringAsFixed(2)} cm"
+                        : "Panjang Badan: ${cmPreview.toStringAsFixed(2)} cm",
                 style: const TextStyle(
                     fontSize: 16, fontWeight: FontWeight.bold, color: _colorDarkTeal),
               ),
@@ -375,24 +428,22 @@ class _MeasurementScreenState extends State<MeasurementScreen> {
     );
   }
 
-  // ================= TITIK =================
+  // ================= TITIK (TANPA BLINK & PRESISI ZOOM) =================
   Widget titik(Offset p, Color color, int index, bool isKalib) {
     return Positioned(
       left: p.dx - 10,
       top: p.dy - 10,
       child: GestureDetector(
         onPanUpdate: (details) {
-          final RenderBox box =
-              _imageKey.currentContext!.findRenderObject() as RenderBox;
-
-          final local = box.globalToLocal(details.globalPosition);
-          final corrected = toImageSpace(local);
+          double scale = _controller.value.getMaxScaleOnAxis();
 
           setState(() {
+            Offset delta = details.delta / scale;
+
             if (isKalib) {
-              kalibrasi[index] = corrected;
+              kalibrasi[index] += delta;
             } else {
-              ukur[index] = corrected;
+              ukur[index] += delta;
             }
           });
         },
@@ -403,6 +454,12 @@ class _MeasurementScreenState extends State<MeasurementScreen> {
             color: color,
             shape: BoxShape.circle,
             border: Border.all(color: Colors.white, width: 2),
+            boxShadow: const [
+              BoxShadow(
+                color: Colors.black26,
+                blurRadius: 3,
+              )
+            ],
           ),
         ),
       ),
