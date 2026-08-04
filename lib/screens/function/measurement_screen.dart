@@ -26,6 +26,10 @@ class _MeasurementScreenState extends State<MeasurementScreen> {
 
   bool isKalibrasi = true;
   double? pixelPerCm;
+  double? kalibrasiCm;
+
+  int _pointerCount = 0;
+  int _rotationQuarterTurns = 0; // 🔥 0 = 0°, 1 = 90°, 2 = 180°, 3 = 270°
 
   final TransformationController _controller = TransformationController();
   final GlobalKey _imageKey = GlobalKey();
@@ -34,6 +38,16 @@ class _MeasurementScreenState extends State<MeasurementScreen> {
   void dispose() {
     _controller.dispose();
     super.dispose();
+  }
+
+  // ================= ROTATE GAMBAR =================
+  void rotateImage() {
+    setState(() {
+      _rotationQuarterTurns = (_rotationQuarterTurns + 1) % 4;
+      // Reset titik agar posisi koordinat tidak berantakan setelah berputar
+      kalibrasi.clear();
+      ukur.clear();
+    });
   }
 
   // ================= GARIS LURUS =================
@@ -54,7 +68,9 @@ class _MeasurementScreenState extends State<MeasurementScreen> {
   }
 
   // ================= TAP (PRESISI TITIK GAMBAR) =================
-  void handleTap(TapDownDetails details) {
+  void handleTap(TapUpDetails details) {
+    if (_pointerCount > 1) return;
+
     final RenderBox? box =
         _imageKey.currentContext?.findRenderObject() as RenderBox?;
 
@@ -67,9 +83,9 @@ class _MeasurementScreenState extends State<MeasurementScreen> {
         if (kalibrasi.length < 2) kalibrasi.add(localPos);
       } else {
         if (widget.isCurveMode) {
-          ukur.add(localPos); // 🔥 MULTI TITIK
+          ukur.add(localPos);
         } else {
-          if (ukur.length < 2) ukur.add(localPos); // 🔥 GARIS LURUS
+          if (ukur.length < 2) ukur.add(localPos);
         }
       }
     });
@@ -136,8 +152,11 @@ class _MeasurementScreenState extends State<MeasurementScreen> {
               TextField(
                 controller: cmController,
                 keyboardType: TextInputType.number,
+                autofocus: true,
                 style: const TextStyle(color: _colorDarkTeal),
                 decoration: InputDecoration(
+                  hintText: "Contoh: 20",
+                  hintStyle: TextStyle(color: _colorDarkTeal.withOpacity(0.4)),
                   filled: true,
                   fillColor: _colorBrightCyan.withOpacity(0.2),
                   border: OutlineInputBorder(
@@ -175,6 +194,7 @@ class _MeasurementScreenState extends State<MeasurementScreen> {
                 if (cm <= 0) return;
 
                 setState(() {
+                  kalibrasiCm = cm;
                   pixelPerCm = pixel / cm;
                   isKalibrasi = false;
                   kalibrasi.clear();
@@ -246,6 +266,15 @@ class _MeasurementScreenState extends State<MeasurementScreen> {
             ],
           ),
         ),
+        actions: [
+          // 🔄 TOMBOL ROTATE DI APPBAR
+          IconButton(
+            icon: const Icon(Icons.rotate_right_rounded, color: Colors.white, size: 24),
+            tooltip: "Putar Gambar",
+            onPressed: rotateImage,
+          ),
+          const SizedBox(width: 8),
+        ],
       ),
       body: Column(
         children: [
@@ -302,45 +331,53 @@ class _MeasurementScreenState extends State<MeasurementScreen> {
                   transformationController: _controller,
                   maxScale: 5,
                   minScale: 1,
-                  child: GestureDetector(
-                    onTapDown: handleTap,
-                    child: Stack(
-                      key: _imageKey,
-                      clipBehavior: Clip.none,
-                      children: [
-                        // Gambar utama
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(12),
-                          child: Image.file(
-                            widget.image,
-                            fit: BoxFit.contain,
-                          ),
-                        ),
-
-                        // 🔴 KALIBRASI
-                        if (kalibrasi.length >= 2)
-                          Positioned.fill(
-                            child: CustomPaint(
-                              painter: LinePainter(kalibrasi, Colors.red),
+                  child: Listener(
+                    onPointerDown: (_) => setState(() => _pointerCount++),
+                    onPointerUp: (_) => setState(() => _pointerCount = max(0, _pointerCount - 1)),
+                    onPointerCancel: (_) => setState(() => _pointerCount = max(0, _pointerCount - 1)),
+                    child: GestureDetector(
+                      onTapUp: handleTap,
+                      child: Stack(
+                        key: _imageKey,
+                        clipBehavior: Clip.none,
+                        children: [
+                          // 🔄 GAMBAR BISA DIPUTAR
+                          RotatedBox(
+                            quarterTurns: _rotationQuarterTurns,
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(12),
+                              child: Image.file(
+                                widget.image,
+                                fit: BoxFit.contain,
+                              ),
                             ),
                           ),
 
-                        // 🔵 UKUR
-                        if (ukur.length >= 2)
-                          Positioned.fill(
-                            child: CustomPaint(
-                              painter: LinePainter(ukur, Colors.blue),
+                          // 🔴 KALIBRASI
+                          if (kalibrasi.length >= 2)
+                            Positioned.fill(
+                              child: CustomPaint(
+                                painter: LinePainter(kalibrasi, Colors.red),
+                              ),
                             ),
-                          ),
 
-                        // 🔴 TITIK
-                        ...kalibrasi.asMap().entries.map(
-                            (e) => titik(e.value, Colors.red, e.key, true)),
+                          // 🔵 UKUR
+                          if (ukur.length >= 2)
+                            Positioned.fill(
+                              child: CustomPaint(
+                                painter: LinePainter(ukur, Colors.blue),
+                              ),
+                            ),
 
-                        // 🔵 TITIK
-                        ...ukur.asMap().entries.map(
-                            (e) => titik(e.value, Colors.blue, e.key, false)),
-                      ],
+                          // 🔴 TITIK KALIBRASI
+                          ...kalibrasi.asMap().entries.map(
+                              (e) => titik(e.value, Colors.red, e.key, true)),
+
+                          // 🔵 TITIK UKUR
+                          ...ukur.asMap().entries.map(
+                              (e) => titik(e.value, Colors.blue, e.key, false)),
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -348,18 +385,42 @@ class _MeasurementScreenState extends State<MeasurementScreen> {
             ),
           ),
 
-          // 🔥 PREVIEW HASIL SEMENTARA
-          if (!isKalibrasi)
+          // 📏 ACUAN KALIBRASI & PREVIEW HASIL
+          if (!isKalibrasi && kalibrasiCm != null)
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0),
-              child: Text(
-                cmPreview == null
-                    ? "Hasil: -"
-                    : widget.isCurveMode
-                        ? "Lingkar Dada: ${cmPreview.toStringAsFixed(2)} cm"
-                        : "Panjang Badan: ${cmPreview.toStringAsFixed(2)} cm",
-                style: const TextStyle(
-                    fontSize: 16, fontWeight: FontWeight.bold, color: _colorDarkTeal),
+              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
+              child: Column(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: Colors.amber.shade50,
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: Colors.amber.shade300),
+                    ),
+                    child: Text(
+                      "Acuan Kalibrasi: ${kalibrasiCm!.toStringAsFixed(0)} cm",
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.amber.shade900,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    cmPreview == null
+                        ? "Hasil: -"
+                        : widget.isCurveMode
+                            ? "Lingkar Dada: ${cmPreview.toStringAsFixed(2)} cm"
+                            : "Panjang Badan: ${cmPreview.toStringAsFixed(2)} cm",
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: _colorDarkTeal,
+                    ),
+                  ),
+                ],
               ),
             ),
 
@@ -428,11 +489,13 @@ class _MeasurementScreenState extends State<MeasurementScreen> {
     );
   }
 
-  // ================= TITIK (TANPA BLINK & PRESISI ZOOM) =================
+  // ================= TITIK =================
   Widget titik(Offset p, Color color, int index, bool isKalib) {
+    const double pointSize = 12.0;
+
     return Positioned(
-      left: p.dx - 10,
-      top: p.dy - 10,
+      left: p.dx - (pointSize / 2),
+      top: p.dy - (pointSize / 2),
       child: GestureDetector(
         onPanUpdate: (details) {
           double scale = _controller.value.getMaxScaleOnAxis();
@@ -448,16 +511,16 @@ class _MeasurementScreenState extends State<MeasurementScreen> {
           });
         },
         child: Container(
-          width: 20,
-          height: 20,
+          width: pointSize,
+          height: pointSize,
           decoration: BoxDecoration(
             color: color,
             shape: BoxShape.circle,
-            border: Border.all(color: Colors.white, width: 2),
+            border: Border.all(color: Colors.white, width: 1.5),
             boxShadow: const [
               BoxShadow(
                 color: Colors.black26,
-                blurRadius: 3,
+                blurRadius: 2,
               )
             ],
           ),
@@ -480,7 +543,7 @@ class LinePainter extends CustomPainter {
 
     final paint = Paint()
       ..color = color
-      ..strokeWidth = 3
+      ..strokeWidth = 2.5
       ..strokeCap = StrokeCap.round;
 
     for (int i = 0; i < points.length - 1; i++) {
