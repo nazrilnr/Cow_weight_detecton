@@ -32,17 +32,27 @@ class DBHelper {
     );
   }
 
-  // 🔹 Simpan data menggunakan SapiModel
+  //  Simpan data menggunakan SapiModel
   Future<void> insertSapi(SapiModel sapi) async {
     final db = await database;
     await db.insert('history', sapi.toMap());
   }
 
-  // 🔹 Ambil data dalam bentuk List<SapiModel>
+  //  Ambil data dalam bentuk List<SapiModel>
   Future<List<SapiModel>> getSapiList() async {
     final db = await database;
     final List<Map<String, dynamic>> maps = await db.query('history', orderBy: 'id DESC');
     return maps.map((map) => SapiModel.fromMap(map)).toList();
+  }
+
+  //  Hapus data berdasarkan ID (BARU)
+  Future<int> deleteSapi(int id) async {
+    final db = await database;
+    return await db.delete(
+      'history',
+      where: 'id = ?',
+      whereArgs: [id],
+    );
   }
 
   // -------------------------------------------------------------

@@ -18,7 +18,6 @@ class HistoryScreen extends StatefulWidget {
 }
 
 class _HistoryScreenState extends State<HistoryScreen> {
-  // 🔥 Diubah ke List<SapiModel>
   List<SapiModel> data = [];
   List<SapiModel> filteredData = [];
 
@@ -33,10 +32,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
     loadData();
   }
 
-  // ================= LOAD =================
+  // ================= LOAD DATA =================
   void loadData() async {
     final db = DBHelper();
-    // 🔥 Panggil getSapiList() bukan getData()
     final result = await db.getSapiList();
 
     if (!mounted) return;
@@ -45,6 +43,160 @@ class _HistoryScreenState extends State<HistoryScreen> {
       data = result;
       filteredData = result;
     });
+  }
+
+  // ================= DELETE DATA WITH CUSTOM POP-UP =================
+  Future<void> deleteSelectedData({int? singleId}) async {
+    final Set<int> idsToDelete =
+        singleId != null ? {singleId} : Set.from(selectedIds);
+
+    if (idsToDelete.isEmpty) return;
+
+    // 🎉 CUSTOM POP-UP DIALOG KONFIRMASI HAPUS
+    bool? confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        title: const Column(
+          children: [
+            Icon(
+              Icons.delete_forever_rounded,
+              color: Colors.redAccent,
+              size: 56,
+            ),
+            SizedBox(height: 12),
+            Text(
+              "Hapus Riwayat?",
+              style: TextStyle(
+                color: _colorDarkTeal,
+                fontWeight: FontWeight.bold,
+                fontSize: 18,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+        content: Text(
+          singleId != null
+              ? "Apakah kamu yakin ingin menghapus data sapi ini? Data yang dihapus tidak bisa dikembalikan."
+              : "Apakah kamu yakin ingin menghapus ${idsToDelete.length} data sapi yang dipilih? Data tidak bisa dikembalikan.",
+          style: const TextStyle(
+            color: Colors.black87,
+            fontSize: 14,
+          ),
+          textAlign: TextAlign.center,
+        ),
+        actionsAlignment: MainAxisAlignment.center,
+        actions: [
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () => Navigator.pop(context, false),
+                  style: OutlinedButton.styleFrom(
+                    side: const BorderSide(color: _colorBrightCyan, width: 1.5),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                  child: const Text(
+                    "Batal",
+                    style: TextStyle(
+                      color: _colorBrightCyan,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: () => Navigator.pop(context, true),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.redAccent,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                  child: const Text(
+                    "Hapus",
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      final db = DBHelper();
+      for (int id in idsToDelete) {
+        await db.deleteSapi(id); // Panggil fungsi deleteSapi dari DBHelper
+      }
+
+      if (!mounted) return;
+
+      // 🎉 POP-UP SUKSES TERHAPUS
+      showDialog(
+        context: context,
+        builder: (_) => AlertDialog(
+          backgroundColor: Colors.white,
+          surfaceTintColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: const Column(
+            children: [
+              Icon(
+                Icons.check_circle_outline,
+                color: _colorDarkTeal,
+                size: 48,
+              ),
+              SizedBox(height: 8),
+              Text(
+                "Berhasil Dihapus",
+                style: TextStyle(
+                  color: _colorDarkTeal,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () => Navigator.pop(context),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _colorBrightCyan,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                child: const Text("OK", style: TextStyle(color: Colors.white)),
+              ),
+            ),
+          ],
+        ),
+      );
+
+      clearSelection();
+      loadData(); // Update tampilan list secara langsung
+    }
   }
 
   // ================= FORMAT ANGKA & TANGGAL =================
@@ -86,7 +238,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
       } else {
         selectedIds.add(id);
       }
-      
+
       if (selectedIds.isEmpty) {
         isSelecting = false;
       }
@@ -245,7 +397,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
                     ),
                   )
                 : ListView.builder(
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
                     itemCount: filteredData.length,
                     itemBuilder: (context, index) {
                       final item = filteredData[index];
@@ -254,7 +407,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                       final tanggalStr = item.tanggal;
 
                       const String dummyAkurasi = "95";
-                      const String dummyJenis = "Limosin"; 
+                      const String dummyJenis = "Limosin";
 
                       return GestureDetector(
                         onTap: isSelecting ? () => toggleSelect(id) : null,
@@ -274,14 +427,16 @@ class _HistoryScreenState extends State<HistoryScreen> {
                             children: [
                               if (isSelecting)
                                 Padding(
-                                  padding: const EdgeInsets.only(top: 10, right: 12),
+                                  padding:
+                                      const EdgeInsets.only(top: 10, right: 12),
                                   child: SizedBox(
                                     width: 24,
                                     height: 24,
                                     child: Checkbox(
                                       value: isSelected,
                                       activeColor: _colorBrightCyan,
-                                      side: const BorderSide(color: _colorMediumTeal),
+                                      side: const BorderSide(
+                                          color: _colorMediumTeal),
                                       onChanged: (_) => toggleSelect(id),
                                     ),
                                   ),
@@ -291,17 +446,38 @@ class _HistoryScreenState extends State<HistoryScreen> {
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Text(
-                                      item.namaSapi,
-                                      style: const TextStyle(
-                                        color: Colors.black87,
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.bold,
-                                      ),
+                                    Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Text(
+                                          item.namaSapi,
+                                          style: const TextStyle(
+                                            color: Colors.black87,
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                        // 🗑️ TOMBOL HAPUS INDIVIDUAL
+                                        if (!isSelecting)
+                                          IconButton(
+                                            constraints: const BoxConstraints(),
+                                            padding: EdgeInsets.zero,
+                                            icon: const Icon(
+                                              Icons.delete_outline,
+                                              color: Colors.redAccent,
+                                              size: 20,
+                                            ),
+                                            onPressed: () =>
+                                                deleteSelectedData(singleId: id),
+                                          ),
+                                      ],
                                     ),
                                     const SizedBox(height: 2),
                                     Text(
-                                      tanggalStr.isNotEmpty ? formatDate(tanggalStr) : "-",
+                                      tanggalStr.isNotEmpty
+                                          ? formatDate(tanggalStr)
+                                          : "-",
                                       style: const TextStyle(
                                         color: Colors.grey,
                                         fontSize: 10,
@@ -316,7 +492,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
                                         color: _colorLightCyan,
                                         borderRadius: BorderRadius.circular(12),
                                         border: isSelected
-                                            ? Border.all(color: _colorBrightCyan, width: 2)
+                                            ? Border.all(
+                                                color: _colorBrightCyan,
+                                                width: 2)
                                             : null,
                                       ),
                                       child: Column(
@@ -330,23 +508,28 @@ class _HistoryScreenState extends State<HistoryScreen> {
                                                   value: formatNumber(item.berat),
                                                   unit: "kg",
                                                   label: "Berat Badan",
-                                                  alignment: CrossAxisAlignment.start,
+                                                  alignment:
+                                                      CrossAxisAlignment.start,
                                                 ),
                                               ),
                                               Expanded(
                                                 child: _ResultItemBox(
-                                                  value: formatNumber(item.lingkarDada),
+                                                  value: formatNumber(
+                                                      item.lingkarDada),
                                                   unit: "cm",
                                                   label: "Lingkar Dada",
-                                                  alignment: CrossAxisAlignment.center,
+                                                  alignment:
+                                                      CrossAxisAlignment.center,
                                                 ),
                                               ),
                                               Expanded(
                                                 child: _ResultItemBox(
-                                                  value: formatNumber(item.panjangBadan),
+                                                  value: formatNumber(
+                                                      item.panjangBadan),
                                                   unit: "cm",
                                                   label: "Panjang",
-                                                  alignment: CrossAxisAlignment.end,
+                                                  alignment:
+                                                      CrossAxisAlignment.end,
                                                 ),
                                               ),
                                             ],
@@ -361,7 +544,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
                                                   value: dummyAkurasi,
                                                   unit: "%",
                                                   label: "Akurasi",
-                                                  alignment: CrossAxisAlignment.start,
+                                                  alignment:
+                                                      CrossAxisAlignment.start,
                                                 ),
                                               ),
                                               Expanded(
@@ -369,7 +553,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
                                                   value: dummyJenis,
                                                   unit: "",
                                                   label: "Jenis Sapi",
-                                                  alignment: CrossAxisAlignment.center,
+                                                  alignment:
+                                                      CrossAxisAlignment.center,
                                                 ),
                                               ),
                                               Expanded(child: SizedBox()),
@@ -390,23 +575,27 @@ class _HistoryScreenState extends State<HistoryScreen> {
           ),
         ],
       ),
-      
+
+      // 🔻 BOTTOM ACTION BAR SAAT MODE PILIH AKTIF
       bottomNavigationBar: isSelecting
           ? SafeArea(
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 decoration: const BoxDecoration(
                   color: Colors.white,
                 ),
                 child: Row(
                   children: [
+                    // TOMBOL PILIH SEMUA
                     Expanded(
                       child: SizedBox(
-                        height: 48,
+                        height: 44,
                         child: OutlinedButton(
                           onPressed: selectAll,
                           style: OutlinedButton.styleFrom(
                             side: const BorderSide(color: _colorDarkTeal),
+                            padding: EdgeInsets.zero,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(8),
                             ),
@@ -414,15 +603,16 @@ class _HistoryScreenState extends State<HistoryScreen> {
                           child: const FittedBox(
                             fit: BoxFit.scaleDown,
                             child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Icon(Icons.select_all, color: _colorDarkTeal, size: 20),
-                                SizedBox(width: 8),
+                                Icon(Icons.select_all,
+                                    color: _colorDarkTeal, size: 18),
+                                SizedBox(width: 4),
                                 Text(
-                                  "Pilih Semua",
+                                  "Semua",
                                   style: TextStyle(
                                     color: _colorDarkTeal,
                                     fontWeight: FontWeight.bold,
+                                    fontSize: 12,
                                   ),
                                 ),
                               ],
@@ -431,16 +621,20 @@ class _HistoryScreenState extends State<HistoryScreen> {
                         ),
                       ),
                     ),
-                    const SizedBox(width: 12),
-                    
+                    const SizedBox(width: 8),
+
+                    // TOMBOL HAPUS MASSAL
                     Expanded(
                       child: SizedBox(
-                        height: 48,
+                        height: 44,
                         child: ElevatedButton(
-                          onPressed: exportData,
+                          onPressed: selectedIds.isEmpty
+                              ? null
+                              : () => deleteSelectedData(),
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: _colorBrightCyan,
+                            backgroundColor: Colors.redAccent,
                             elevation: 0,
+                            padding: EdgeInsets.zero,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(8),
                             ),
@@ -448,15 +642,53 @@ class _HistoryScreenState extends State<HistoryScreen> {
                           child: const FittedBox(
                             fit: BoxFit.scaleDown,
                             child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Icon(Icons.picture_as_pdf, color: Colors.white, size: 20),
-                                SizedBox(width: 8),
+                                Icon(Icons.delete,
+                                    color: Colors.white, size: 18),
+                                SizedBox(width: 4),
                                 Text(
-                                  "Export PDF",
+                                  "Hapus",
                                   style: TextStyle(
                                     color: Colors.white,
                                     fontWeight: FontWeight.bold,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+
+                    // TOMBOL EXPORT PDF
+                    Expanded(
+                      child: SizedBox(
+                        height: 44,
+                        child: ElevatedButton(
+                          onPressed: selectedIds.isEmpty ? null : exportData,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: _colorBrightCyan,
+                            elevation: 0,
+                            padding: EdgeInsets.zero,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                          child: const FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Row(
+                              children: [
+                                Icon(Icons.picture_as_pdf,
+                                    color: Colors.white, size: 18),
+                                SizedBox(width: 4),
+                                Text(
+                                  "Export",
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 12,
                                   ),
                                 ),
                               ],
