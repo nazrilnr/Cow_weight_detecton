@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../../database/db_helper.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
-import '../../models/sapi_model.dart'; // 🔥 Import SapiModel
+import '../../models/sapi_model.dart';
 
 // ================= WARNA TEMA =================
 const Color _colorDarkTeal = Color(0xFF1C7482);
@@ -45,14 +45,13 @@ class _HistoryScreenState extends State<HistoryScreen> {
     });
   }
 
-  // ================= DELETE DATA WITH CUSTOM POP-UP =================
+  // ================= DELETE DATA =================
   Future<void> deleteSelectedData({int? singleId}) async {
     final Set<int> idsToDelete =
         singleId != null ? {singleId} : Set.from(selectedIds);
 
     if (idsToDelete.isEmpty) return;
 
-    // 🎉 CUSTOM POP-UP DIALOG KONFIRMASI HAPUS
     bool? confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -143,12 +142,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
     if (confirm == true) {
       final db = DBHelper();
       for (int id in idsToDelete) {
-        await db.deleteSapi(id); // Panggil fungsi deleteSapi dari DBHelper
+        await db.deleteSapi(id);
       }
 
       if (!mounted) return;
 
-      // 🎉 POP-UP SUKSES TERHAPUS
       showDialog(
         context: context,
         builder: (_) => AlertDialog(
@@ -195,7 +193,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
       );
 
       clearSelection();
-      loadData(); // Update tampilan list secara langsung
+      loadData();
     }
   }
 
@@ -278,12 +276,14 @@ class _HistoryScreenState extends State<HistoryScreen> {
             pw.Text("Riwayat Sapi", style: pw.TextStyle(fontSize: 20)),
             pw.SizedBox(height: 10),
             pw.Table.fromTextArray(
-              headers: ["Nama", "Lingkar", "Panjang", "Berat"],
+              headers: ["Nama", "Rumus", "Lingkar", "Panjang", "Berat"],
               data: exportList.map((item) {
+                final bool isSchoorl = item.panjangBadan <= 0;
                 return [
                   item.namaSapi,
+                  isSchoorl ? "Schoorl" : "Winter",
                   "${formatNumber(item.lingkarDada)} cm",
-                  "${formatNumber(item.panjangBadan)} cm",
+                  isSchoorl ? "-" : "${formatNumber(item.panjangBadan)} cm",
                   "${formatNumber(item.berat)} kg",
                 ];
               }).toList(),
@@ -406,6 +406,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
                       final isSelected = selectedIds.contains(id);
                       final tanggalStr = item.tanggal;
 
+                      // Deteksi apakah menggunakan rumus Schoorl
+                      final bool isSchoorl = item.panjangBadan <= 0;
+
                       const String dummyAkurasi = "95";
                       const String dummyJenis = "Limosin";
 
@@ -458,7 +461,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
                                             fontWeight: FontWeight.bold,
                                           ),
                                         ),
-                                        // 🗑️ TOMBOL HAPUS INDIVIDUAL
                                         if (!isSelecting)
                                           IconButton(
                                             constraints: const BoxConstraints(),
@@ -524,9 +526,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
                                               ),
                                               Expanded(
                                                 child: _ResultItemBox(
-                                                  value: formatNumber(
-                                                      item.panjangBadan),
-                                                  unit: "cm",
+                                                  value: isSchoorl
+                                                      ? "-"
+                                                      : formatNumber(
+                                                          item.panjangBadan),
+                                                  unit: isSchoorl ? "" : "cm",
                                                   label: "Panjang",
                                                   alignment:
                                                       CrossAxisAlignment.end,
@@ -538,7 +542,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                                           Row(
                                             crossAxisAlignment:
                                                 CrossAxisAlignment.start,
-                                            children: const [
+                                            children: [
                                               Expanded(
                                                 child: _ResultItemBox(
                                                   value: dummyAkurasi,
@@ -557,7 +561,17 @@ class _HistoryScreenState extends State<HistoryScreen> {
                                                       CrossAxisAlignment.center,
                                                 ),
                                               ),
-                                              Expanded(child: SizedBox()),
+                                              Expanded(
+                                                child: _ResultItemBox(
+                                                  value: isSchoorl
+                                                      ? "Schoorl"
+                                                      : "Winter",
+                                                  unit: "",
+                                                  label: "Rumus",
+                                                  alignment:
+                                                      CrossAxisAlignment.end,
+                                                ),
+                                              ),
                                             ],
                                           ),
                                         ],
@@ -576,7 +590,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
         ],
       ),
 
-      // 🔻 BOTTOM ACTION BAR SAAT MODE PILIH AKTIF
       bottomNavigationBar: isSelecting
           ? SafeArea(
               child: Container(
@@ -587,7 +600,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 ),
                 child: Row(
                   children: [
-                    // TOMBOL PILIH SEMUA
                     Expanded(
                       child: SizedBox(
                         height: 44,
@@ -623,7 +635,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
                     ),
                     const SizedBox(width: 8),
 
-                    // TOMBOL HAPUS MASSAL
                     Expanded(
                       child: SizedBox(
                         height: 44,
@@ -662,7 +673,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
                     ),
                     const SizedBox(width: 8),
 
-                    // TOMBOL EXPORT PDF
                     Expanded(
                       child: SizedBox(
                         height: 44,
