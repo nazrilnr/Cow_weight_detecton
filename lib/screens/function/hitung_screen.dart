@@ -223,29 +223,7 @@ void simpanData() async {
 
                 const SizedBox(height: 20),
 
-                _CustomInputField(
-                  label: "Lingkar Dada (opsional)",
-                  hint: "Masukan Lingkar Dada Sapi (cm)",
-                  controller: lingkarController,
-                  type: TextInputType.number,
-                  validator: validateNumber,
-                ),
-                const SizedBox(height: 12),
-                
-                fotoDepan == null
-                    ? _PhotoUploadBox(
-                        title: "Tambahkan Foto Tampak Depan",
-                        subtitle:
-                            "Pastikan untuk mengambil foto dengan\npenerangan yang jelas dan foto di ambil dalam\njarak 2 meter",
-                        onTap: () => openMeasurement(true),
-                      )
-                    : _ImageDisplayBox(
-                        image: fotoDepan!,
-                        onTap: () => openMeasurement(true),
-                      ),
-
-                const SizedBox(height: 20),
-
+                // ================= FORM PANJANG SAPI =================
                 _CustomInputField(
                   label: "Panjang Sapi (opsional)",
                   hint: "Masukan Panjang Sapi (cm)",
@@ -265,6 +243,30 @@ void simpanData() async {
                     : _ImageDisplayBox(
                         image: fotoSamping!,
                         onTap: () => openMeasurement(false),
+                      ),
+
+                const SizedBox(height: 20),
+
+                // ================= FORM LINGKAR DADA =================
+                _CustomInputField(
+                  label: "Lingkar Dada (opsional)",
+                  hint: "Masukan Lingkar Dada Sapi (cm)",
+                  controller: lingkarController,
+                  type: TextInputType.number,
+                  validator: validateNumber,
+                ),
+                const SizedBox(height: 12),
+                
+                fotoDepan == null
+                    ? _PhotoUploadBox(
+                        title: "Tambahkan Foto Tampak Depan",
+                        subtitle:
+                            "Pastikan untuk mengambil foto dengan\npenerangan yang jelas dan foto di ambil dalam\njarak 2 meter",
+                        onTap: () => openMeasurement(true),
+                      )
+                    : _ImageDisplayBox(
+                        image: fotoDepan!,
+                        onTap: () => openMeasurement(true),
                       ),
 
                 const SizedBox(height: 32),
