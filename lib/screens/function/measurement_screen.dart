@@ -17,7 +17,7 @@ class MeasurementScreen extends StatefulWidget {
   });
 
   @override
-  _MeasurementScreenState createState() => _MeasurementScreenState();
+  State<MeasurementScreen> createState() => _MeasurementScreenState();
 }
 
 class _MeasurementScreenState extends State<MeasurementScreen> {
@@ -156,9 +156,11 @@ class _MeasurementScreenState extends State<MeasurementScreen> {
                 style: const TextStyle(color: _colorDarkTeal),
                 decoration: InputDecoration(
                   hintText: "Contoh: 20",
-                  hintStyle: TextStyle(color: _colorDarkTeal.withOpacity(0.4)),
+                  hintStyle: TextStyle(
+                    color: _colorDarkTeal.withValues(alpha: 0.4),
+                  ),
                   filled: true,
-                  fillColor: _colorBrightCyan.withOpacity(0.2),
+                  fillColor: _colorBrightCyan.withValues(alpha: 0.2),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                     borderSide: BorderSide.none,
@@ -286,7 +288,7 @@ class _MeasurementScreenState extends State<MeasurementScreen> {
             decoration: BoxDecoration(
               color: isKalibrasi
                   ? Colors.amber.shade50
-                  : _colorBrightCyan.withOpacity(0.15),
+                  : _colorBrightCyan.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(10),
               border: Border.all(
                 color: isKalibrasi

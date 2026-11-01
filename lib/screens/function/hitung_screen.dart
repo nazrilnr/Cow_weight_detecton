@@ -17,7 +17,7 @@ class HitungScreen extends StatefulWidget {
   const HitungScreen({super.key});
 
   @override
-  _HitungScreenState createState() => _HitungScreenState();
+  State<HitungScreen> createState() => _HitungScreenState();
 }
 
 class _HitungScreenState extends State<HitungScreen> {
@@ -153,6 +153,8 @@ void simpanData() async {
     final picked =
         await ImagePicker().pickImage(source: ImageSource.gallery);
 
+    if (!mounted) return;
+
     if (picked != null) {
       File imageFile = File(picked.path);
 
@@ -173,6 +175,8 @@ void simpanData() async {
           ),
         ),
       );
+
+      if (!mounted) return;
 
       if (result != null) {
         setState(() {
@@ -490,7 +494,7 @@ class _ImageDisplayBox extends StatelessWidget {
             child: Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: Colors.black.withOpacity(0.6),
+                color: Colors.black.withValues(alpha: 0.6),
                 shape: BoxShape.circle,
               ),
               child: const Icon(

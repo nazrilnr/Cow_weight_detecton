@@ -1,70 +1,88 @@
-import 'package:sqflite/sqflite.dart';
-import 'package:path/path.dart';
+import 'dart:convert';
+
+import 'package:shared_preferences/shared_preferences.dart';
+
 import '../models/sapi_model.dart';
 
 class DBHelper {
-  static Database? _database;
+  static const String _dataKey = 'sapi_list';
+  static const String _lastIdKey = 'sapi_last_id';
 
-  Future<Database> get database async {
-    if (_database != null) return _database!;
-    _database = await _initDB();
-    return _database!;
+  Future<SharedPreferences> get _prefs => SharedPreferences.getInstance();
+
+  Future<List<Map<String, dynamic>>> _readAll() async {
+    final prefs = await _prefs;
+    final raw = prefs.getString(_dataKey);
+
+    if (raw == null || raw.isEmpty) return [];
+
+    final decoded = jsonDecode(raw) as List<dynamic>;
+    return decoded
+        .map((item) => Map<String, dynamic>.from(item as Map))
+        .toList();
   }
 
-  Future<Database> _initDB() async {
-    final path = join(await getDatabasesPath(), 'sapi.db');
-
-    return await openDatabase(
-      path,
-      version: 1,
-      onCreate: (db, version) async {
-        await db.execute('''
-          CREATE TABLE history(
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            nama_sapi TEXT,
-            lingkar_dada REAL,
-            panjang_badan REAL,
-            berat REAL,
-            tanggal TEXT
-          )
-        ''');
-      },
-    );
+  Future<void> _writeAll(List<Map<String, dynamic>> items) async {
+    final prefs = await _prefs;
+    await prefs.setString(_dataKey, jsonEncode(items));
   }
 
-  //  Simpan data menggunakan SapiModel
+  // Simpan data menggunakan SapiModel
   Future<void> insertSapi(SapiModel sapi) async {
-    final db = await database;
-    await db.insert('history', sapi.toMap());
+    final prefs = await _prefs;
+    final items = await _readAll();
+
+    final nextId = (prefs.getInt(_lastIdKey) ?? 0) + 1;
+    final map = sapi.toMap();
+    map['id'] = nextId;
+    items.add(map);
+
+    await prefs.setInt(_lastIdKey, nextId);
+    await _writeAll(items);
   }
 
-  //  Ambil data dalam bentuk List<SapiModel>
+  // Ambil data dalam bentuk List<SapiModel>
   Future<List<SapiModel>> getSapiList() async {
-    final db = await database;
-    final List<Map<String, dynamic>> maps = await db.query('history', orderBy: 'id DESC');
-    return maps.map((map) => SapiModel.fromMap(map)).toList();
+    final items = await _readAll();
+    items.sort(_sortByIdDesc);
+    return items.map((map) => SapiModel.fromMap(map)).toList();
   }
 
-  //  Hapus data berdasarkan ID (BARU)
+  // Hapus data berdasarkan ID
   Future<int> deleteSapi(int id) async {
-    final db = await database;
-    return await db.delete(
-      'history',
-      where: 'id = ?',
-      whereArgs: [id],
-    );
+    final items = await _readAll();
+    final before = items.length;
+    items.removeWhere((item) => item['id'] == id);
+    await _writeAll(items);
+    return before - items.length;
   }
 
   // -------------------------------------------------------------
   // ⚠️ METHOD LAMA (Dibiarkan ada agar tidak error jika dipanggil)
   // -------------------------------------------------------------
   Future<void> insertData(Map<String, dynamic> data) async {
-    final db = await database;
-    await db.insert('history', data);
+    final items = await _readAll();
+
+    if (data['id'] == null) {
+      final prefs = await _prefs;
+      final nextId = (prefs.getInt(_lastIdKey) ?? 0) + 1;
+      data['id'] = nextId;
+      await prefs.setInt(_lastIdKey, nextId);
+    }
+
+    items.add(data);
+    await _writeAll(items);
   }
 
   Future<List<Map<String, dynamic>>> getData() async {
-    final db = await database;
-    return await db.query('history', orderBy: 'id DESC');
+    final items = await _readAll();
+    items.sort(_sortByIdDesc);
+    return items;
+  }
+
+  int _sortByIdDesc(Map<String, dynamic> a, Map<String, dynamic> b) {
+    final idA = (a['id'] as num?)?.toInt() ?? 0;
+    final idB = (b['id'] as num?)?.toInt() ?? 0;
+    return idB.compareTo(idA);
   }
 }

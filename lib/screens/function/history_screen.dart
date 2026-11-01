@@ -14,7 +14,7 @@ class HistoryScreen extends StatefulWidget {
   const HistoryScreen({super.key});
 
   @override
-  _HistoryScreenState createState() => _HistoryScreenState();
+  State<HistoryScreen> createState() => _HistoryScreenState();
 }
 
 class _HistoryScreenState extends State<HistoryScreen> {
@@ -277,7 +277,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
           children: [
             pw.Text("Riwayat Sapi", style: pw.TextStyle(fontSize: 20)),
             pw.SizedBox(height: 10),
-            pw.Table.fromTextArray(
+            pw.TableHelper.fromTextArray(
               headers: ["Nama", "Lingkar", "Panjang", "Berat"],
               data: exportList.map((item) {
                 return [
@@ -337,7 +337,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
               decoration: InputDecoration(
                 hintText: "Cari Sapi",
                 hintStyle: TextStyle(
-                  color: _colorMediumTeal.withOpacity(0.7),
+                  color: _colorMediumTeal.withValues(alpha: 0.7),
                   fontSize: 14,
                 ),
                 prefixIcon: const Icon(Icons.search, color: _colorMediumTeal),
@@ -406,8 +406,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                       final isSelected = selectedIds.contains(id);
                       final tanggalStr = item.tanggal;
 
-                      const String dummyAkurasi = "95";
-                      const String dummyJenis = "Limosin";
+                      // Akurasi dan Jenis Sapi dihilangkan sesuai permintaan
 
                       return GestureDetector(
                         onTap: isSelecting ? () => toggleSelect(id) : null,
@@ -534,32 +533,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                                               ),
                                             ],
                                           ),
-                                          const SizedBox(height: 16),
-                                          Row(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: const [
-                                              Expanded(
-                                                child: _ResultItemBox(
-                                                  value: dummyAkurasi,
-                                                  unit: "%",
-                                                  label: "Akurasi",
-                                                  alignment:
-                                                      CrossAxisAlignment.start,
-                                                ),
-                                              ),
-                                              Expanded(
-                                                child: _ResultItemBox(
-                                                  value: dummyJenis,
-                                                  unit: "",
-                                                  label: "Jenis Sapi",
-                                                  alignment:
-                                                      CrossAxisAlignment.center,
-                                                ),
-                                              ),
-                                              Expanded(child: SizedBox()),
-                                            ],
-                                          ),
+                                          const SizedBox(height: 0),
                                         ],
                                       ),
                                     ),
