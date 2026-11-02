@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../../database/db_helper.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
-import '../../models/sapi_model.dart'; // 🔥 Import SapiModel
+import '../../models/sapi_model.dart';
 
 // ================= WARNA TEMA =================
 const Color _colorDarkTeal = Color(0xFF1C7482);
@@ -52,7 +52,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
     if (idsToDelete.isEmpty) return;
 
-    // 🎉 CUSTOM POP-UP DIALOG KONFIRMASI HAPUS
     bool? confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -143,12 +142,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
     if (confirm == true) {
       final db = DBHelper();
       for (int id in idsToDelete) {
-        await db.deleteSapi(id); // Panggil fungsi deleteSapi dari DBHelper
+        await db.deleteSapi(id);
       }
 
       if (!mounted) return;
 
-      // 🎉 POP-UP SUKSES TERHAPUS
       showDialog(
         context: context,
         builder: (_) => AlertDialog(
@@ -195,12 +193,13 @@ class _HistoryScreenState extends State<HistoryScreen> {
       );
 
       clearSelection();
-      loadData(); // Update tampilan list secara langsung
+      loadData();
     }
   }
 
   // ================= FORMAT ANGKA & TANGGAL =================
-  String formatNumber(double value) {
+  String formatNumber(double? value) {
+    if (value == null || value == 0) return "-";
     return value.toStringAsFixed(0);
   }
 
@@ -261,7 +260,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
     });
   }
 
-  // ================= EXPORT PDF =================
+  // ================= EXPORT PDF (DIPERBARUI) =================
   Future<void> exportData() async {
     final exportList =
         data.where((e) => e.id != null && selectedIds.contains(e.id)).toList();
@@ -275,15 +274,20 @@ class _HistoryScreenState extends State<HistoryScreen> {
         build: (context) => pw.Column(
           crossAxisAlignment: pw.CrossAxisAlignment.start,
           children: [
-            pw.Text("Riwayat Sapi", style: pw.TextStyle(fontSize: 20)),
+            pw.Text("Riwayat Pengukuran Sapi", style: pw.TextStyle(fontSize: 20)),
             pw.SizedBox(height: 10),
             pw.TableHelper.fromTextArray(
-              headers: ["Nama", "Lingkar", "Panjang", "Berat"],
+              headers: ["Nama", "Lingkar Dada", "Panjang", "Tinggi", "Berat"],
               data: exportList.map((item) {
                 return [
                   item.namaSapi,
-                  "${formatNumber(item.lingkarDada)} cm",
+                  item.lingkarDada != null && item.lingkarDada! > 0
+                      ? "${formatNumber(item.lingkarDada)} cm"
+                      : "-",
                   "${formatNumber(item.panjangBadan)} cm",
+                  item.tinggiBadan > 0
+                      ? "${formatNumber(item.tinggiBadan)} cm"
+                      : "-",
                   "${formatNumber(item.berat)} kg",
                 ];
               }).toList(),
@@ -406,8 +410,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
                       final isSelected = selectedIds.contains(id);
                       final tanggalStr = item.tanggal;
 
-                      // Akurasi dan Jenis Sapi dihilangkan sesuai permintaan
-
                       return GestureDetector(
                         onTap: isSelecting ? () => toggleSelect(id) : null,
                         onLongPress: () {
@@ -484,9 +486,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
                                     ),
                                     const SizedBox(height: 12),
 
+                                    // 📦 CARD METRIK PENGUKURAN
                                     Container(
                                       padding: const EdgeInsets.symmetric(
-                                          horizontal: 16, vertical: 16),
+                                          horizontal: 14, vertical: 14),
                                       decoration: BoxDecoration(
                                         color: _colorLightCyan,
                                         borderRadius: BorderRadius.circular(12),
@@ -496,44 +499,42 @@ class _HistoryScreenState extends State<HistoryScreen> {
                                                 width: 2)
                                             : null,
                                       ),
-                                      child: Column(
+                                      child: Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.spaceBetween,
                                         children: [
-                                          Row(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: [
-                                              Expanded(
-                                                child: _ResultItemBox(
-                                                  value: formatNumber(item.berat),
-                                                  unit: "kg",
-                                                  label: "Berat Badan",
-                                                  alignment:
-                                                      CrossAxisAlignment.start,
-                                                ),
-                                              ),
-                                              Expanded(
-                                                child: _ResultItemBox(
-                                                  value: formatNumber(
-                                                      item.lingkarDada),
-                                                  unit: "cm",
-                                                  label: "Lingkar Dada",
-                                                  alignment:
-                                                      CrossAxisAlignment.center,
-                                                ),
-                                              ),
-                                              Expanded(
-                                                child: _ResultItemBox(
-                                                  value: formatNumber(
-                                                      item.panjangBadan),
-                                                  unit: "cm",
-                                                  label: "Panjang",
-                                                  alignment:
-                                                      CrossAxisAlignment.end,
-                                                ),
-                                              ),
-                                            ],
+                                          Expanded(
+                                            child: _ResultItemBox(
+                                              value: formatNumber(item.berat),
+                                              unit: "kg",
+                                              label: "Berat",
+                                              alignment: CrossAxisAlignment.start,
+                                            ),
                                           ),
-                                          const SizedBox(height: 0),
+                                          Expanded(
+                                            child: _ResultItemBox(
+                                              value: formatNumber(item.lingkarDada),
+                                              unit: item.lingkarDada != null && item.lingkarDada! > 0 ? "cm" : "",
+                                              label: "Lingkar",
+                                              alignment: CrossAxisAlignment.center,
+                                            ),
+                                          ),
+                                          Expanded(
+                                            child: _ResultItemBox(
+                                              value: formatNumber(item.panjangBadan),
+                                              unit: "cm",
+                                              label: "Panjang",
+                                              alignment: CrossAxisAlignment.center,
+                                            ),
+                                          ),
+                                          Expanded(
+                                            child: _ResultItemBox(
+                                              value: formatNumber(item.tinggiBadan),
+                                              unit: item.tinggiBadan > 0 ? "cm" : "",
+                                              label: "Tinggi",
+                                              alignment: CrossAxisAlignment.end,
+                                            ),
+                                          ),
                                         ],
                                       ),
                                     ),
@@ -715,7 +716,7 @@ class _ResultItemBox extends StatelessWidget {
                 text: value,
                 style: const TextStyle(
                   color: _colorDarkTeal,
-                  fontSize: 16,
+                  fontSize: 14,
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -724,7 +725,7 @@ class _ResultItemBox extends StatelessWidget {
                   text: " $unit",
                   style: const TextStyle(
                     color: _colorDarkTeal,
-                    fontSize: 10,
+                    fontSize: 9,
                     fontWeight: FontWeight.bold,
                   ),
                 ),

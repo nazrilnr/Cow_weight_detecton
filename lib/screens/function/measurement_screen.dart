@@ -8,7 +8,7 @@ const Color _colorBrightCyan = Color(0xFF38D0D8);
 
 class MeasurementScreen extends StatefulWidget {
   final File image;
-  final bool isCurveMode; // 🔥 true = lengkung, false = garis
+  final bool isCurveMode; // 🔥 true = lengkung (depan), false = garis (samping: panjang & tinggi)
 
   const MeasurementScreen({
     super.key,
@@ -22,9 +22,13 @@ class MeasurementScreen extends StatefulWidget {
 
 class _MeasurementScreenState extends State<MeasurementScreen> {
   List<Offset> kalibrasi = [];
-  List<Offset> ukur = [];
+  List<Offset> ukurPanjang = [];
+  List<Offset> ukurTinggi = [];
+  List<Offset> ukurLingkar = [];
 
-  bool isKalibrasi = true;
+  // Step: 0 = Kalibrasi, 1 = Ukur Panjang (atau Lingkar), 2 = Ukur Tinggi
+  int currentStep = 0;
+
   double? pixelPerCm;
   double? kalibrasiCm;
 
@@ -44,14 +48,18 @@ class _MeasurementScreenState extends State<MeasurementScreen> {
   void rotateImage() {
     setState(() {
       _rotationQuarterTurns = (_rotationQuarterTurns + 1) % 4;
-      // Reset titik agar posisi koordinat tidak berantakan setelah berputar
       kalibrasi.clear();
-      ukur.clear();
+      ukurPanjang.clear();
+      ukurTinggi.clear();
+      ukurLingkar.clear();
+      currentStep = 0;
+      pixelPerCm = null;
     });
   }
 
-  // ================= GARIS LURUS =================
+  // ================= JARAK DUA TITIK =================
   double getDistance(List<Offset> p) {
+    if (p.length < 2) return 0;
     return sqrt(pow(p[0].dx - p[1].dx, 2) + pow(p[0].dy - p[1].dy, 2));
   }
 
@@ -79,13 +87,15 @@ class _MeasurementScreenState extends State<MeasurementScreen> {
     final Offset localPos = box.globalToLocal(details.globalPosition);
 
     setState(() {
-      if (isKalibrasi) {
+      if (currentStep == 0) {
         if (kalibrasi.length < 2) kalibrasi.add(localPos);
+      } else if (widget.isCurveMode) {
+        ukurLingkar.add(localPos);
       } else {
-        if (widget.isCurveMode) {
-          ukur.add(localPos);
-        } else {
-          if (ukur.length < 2) ukur.add(localPos);
+        if (currentStep == 1) {
+          if (ukurPanjang.length < 2) ukurPanjang.add(localPos);
+        } else if (currentStep == 2) {
+          if (ukurTinggi.length < 2) ukurTinggi.add(localPos);
         }
       }
     });
@@ -94,10 +104,14 @@ class _MeasurementScreenState extends State<MeasurementScreen> {
   // ================= UNDO =================
   void undoPoint() {
     setState(() {
-      if (isKalibrasi && kalibrasi.isNotEmpty) {
+      if (currentStep == 0 && kalibrasi.isNotEmpty) {
         kalibrasi.removeLast();
-      } else if (!isKalibrasi && ukur.isNotEmpty) {
-        ukur.removeLast();
+      } else if (widget.isCurveMode && ukurLingkar.isNotEmpty) {
+        ukurLingkar.removeLast();
+      } else if (currentStep == 1 && ukurPanjang.isNotEmpty) {
+        ukurPanjang.removeLast();
+      } else if (currentStep == 2 && ukurTinggi.isNotEmpty) {
+        ukurTinggi.removeLast();
       }
     });
   }
@@ -105,18 +119,28 @@ class _MeasurementScreenState extends State<MeasurementScreen> {
   // ================= RESET =================
   void resetPoints() {
     setState(() {
-      if (isKalibrasi) {
+      if (currentStep == 0) {
         kalibrasi.clear();
-      } else {
-        ukur.clear();
+      } else if (widget.isCurveMode) {
+        ukurLingkar.clear();
+      } else if (currentStep == 1) {
+        ukurPanjang.clear();
+      } else if (currentStep == 2) {
+        ukurTinggi.clear();
       }
     });
   }
 
   // ================= NEXT / LANJUT =================
   void handleNext() {
-    if (isKalibrasi) {
-      if (kalibrasi.length < 2) return;
+    // TAHAP 1: SELESAIKAN KALIBRASI
+    if (currentStep == 0) {
+      if (kalibrasi.length < 2) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Tandai 2 titik acuan kalibrasi terlebih dahulu")),
+        );
+        return;
+      }
 
       double pixel = getDistance(kalibrasi);
       TextEditingController cmController = TextEditingController();
@@ -141,7 +165,7 @@ class _MeasurementScreenState extends State<MeasurementScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text(
-                "Masukkan Panjang Aktual (cm)",
+                "Masukkan Panjang Aktual Objek (cm)",
                 style: TextStyle(
                   color: _colorDarkTeal,
                   fontWeight: FontWeight.w600,
@@ -198,8 +222,7 @@ class _MeasurementScreenState extends State<MeasurementScreen> {
                 setState(() {
                   kalibrasiCm = cm;
                   pixelPerCm = pixel / cm;
-                  isKalibrasi = false;
-                  kalibrasi.clear();
+                  currentStep = 1; // Pindah ke tahap ukur berikutnya
                 });
 
                 Navigator.pop(context);
@@ -218,30 +241,87 @@ class _MeasurementScreenState extends State<MeasurementScreen> {
           ],
         ),
       );
-    } else {
-      if (ukur.length < 2) return;
-
-      double pixel = widget.isCurveMode
-          ? getPolylineLength(ukur)
-          : getDistance(ukur);
-
+    } 
+    // TAHAP 2 (JIKA MODE LENGKUNG / LINGKAR DADA)
+    else if (widget.isCurveMode) {
+      if (ukurLingkar.length < 2) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Buat titik-titik melingkar terlebih dahulu")),
+        );
+        return;
+      }
+      double pixel = getPolylineLength(ukurLingkar);
       double cm = pixel / pixelPerCm!;
-
       Navigator.pop(context, cm);
+    } 
+    // TAHAP 2 (UKUR PANJANG BADAN)
+    else if (currentStep == 1) {
+      if (ukurPanjang.length < 2) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Tandai 2 titik panjang badan sapi")),
+        );
+        return;
+      }
+
+      // Berpindah ke tahap ukur tinggi badan tanpa keluar layar
+      setState(() {
+        currentStep = 2;
+      });
+    } 
+    // TAHAP 3 (UKUR TINGGI BADAN & SELESAI)
+    else if (currentStep == 2) {
+      if (ukurTinggi.length < 2) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Tandai 2 titik tinggi sapi (pundak ke tanah)")),
+        );
+        return;
+      }
+
+      double panjangPx = getDistance(ukurPanjang);
+      double tinggiPx = getDistance(ukurTinggi);
+
+      double panjangCm = panjangPx / pixelPerCm!;
+      double tinggiCm = tinggiPx / pixelPerCm!;
+
+      // Mengembalikan Map berisi panjang dan tinggi badan
+      Navigator.pop(context, <String, double>{
+        'panjang': panjangCm,
+        'tinggi': tinggiCm,
+      });
     }
+  }
+
+  // ================= TEKS INSTRUKSI =================
+  String getInstructionText() {
+    if (currentStep == 0) {
+      return "Langkah 1: Tandai 2 titik acuan kalibrasi pada objek";
+    }
+    if (widget.isCurveMode) {
+      return "Langkah 2: Buat titik-titik melingkari dada sapi";
+    }
+    if (currentStep == 1) {
+      return "Langkah 2: Tandai 2 titik PANJANG badan (bahu ke pinggul)";
+    }
+    return "Langkah 3: Tandai 2 titik TINGGI badan (pundak tegak ke kaki)";
   }
 
   // ================= UI =================
   @override
   Widget build(BuildContext context) {
-    double? cmPreview;
+    double? panjangCmPreview;
+    double? tinggiCmPreview;
+    double? lingkarCmPreview;
 
-    if (!isKalibrasi && pixelPerCm != null && ukur.length >= 2) {
-      double pixel = widget.isCurveMode
-          ? getPolylineLength(ukur)
-          : getDistance(ukur);
-
-      cmPreview = pixel / pixelPerCm!;
+    if (pixelPerCm != null) {
+      if (widget.isCurveMode && ukurLingkar.length >= 2) {
+        lingkarCmPreview = getPolylineLength(ukurLingkar) / pixelPerCm!;
+      }
+      if (ukurPanjang.length >= 2) {
+        panjangCmPreview = getDistance(ukurPanjang) / pixelPerCm!;
+      }
+      if (ukurTinggi.length >= 2) {
+        tinggiCmPreview = getDistance(ukurTinggi) / pixelPerCm!;
+      }
     }
 
     return Scaffold(
@@ -269,7 +349,6 @@ class _MeasurementScreenState extends State<MeasurementScreen> {
           ),
         ),
         actions: [
-          // 🔄 TOMBOL ROTATE DI APPBAR
           IconButton(
             icon: const Icon(Icons.rotate_right_rounded, color: Colors.white, size: 24),
             tooltip: "Putar Gambar",
@@ -286,12 +365,12 @@ class _MeasurementScreenState extends State<MeasurementScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             margin: const EdgeInsets.fromLTRB(16, 12, 16, 4),
             decoration: BoxDecoration(
-              color: isKalibrasi
+              color: currentStep == 0
                   ? Colors.amber.shade50
                   : _colorBrightCyan.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(10),
               border: Border.all(
-                color: isKalibrasi
+                color: currentStep == 0
                     ? Colors.amber.shade400
                     : _colorBrightCyan,
                 width: 1,
@@ -300,22 +379,18 @@ class _MeasurementScreenState extends State<MeasurementScreen> {
             child: Row(
               children: [
                 Icon(
-                  isKalibrasi ? Icons.straighten : Icons.ads_click,
-                  color: isKalibrasi ? Colors.amber.shade900 : _colorDarkTeal,
+                  currentStep == 0 ? Icons.straighten : Icons.ads_click,
+                  color: currentStep == 0 ? Colors.amber.shade900 : _colorDarkTeal,
                   size: 22,
                 ),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    isKalibrasi
-                        ? "Langkah 1: Tandai 2 titik acuan kalibrasi pada objek"
-                        : widget.isCurveMode
-                            ? "Langkah 2: Buat titik-titik melingkar mengelilingi dada sapi"
-                            : "Langkah 2: Tandai 2 titik panjang badan sapi (bahu ke pinggul)",
+                    getInstructionText(),
                     style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
-                      color: isKalibrasi
+                      color: currentStep == 0
                           ? Colors.amber.shade900
                           : _colorDarkTeal,
                     ),
@@ -343,7 +418,6 @@ class _MeasurementScreenState extends State<MeasurementScreen> {
                         key: _imageKey,
                         clipBehavior: Clip.none,
                         children: [
-                          // 🔄 GAMBAR BISA DIPUTAR
                           RotatedBox(
                             quarterTurns: _rotationQuarterTurns,
                             child: ClipRRect(
@@ -355,29 +429,54 @@ class _MeasurementScreenState extends State<MeasurementScreen> {
                             ),
                           ),
 
-                          // 🔴 KALIBRASI
-                          if (kalibrasi.length >= 2)
+                          // 🔴 KALIBRASI (Hanya tampil saat Step 0 / proses kalibrasi)
+                          if (currentStep == 0 && kalibrasi.length >= 2)
                             Positioned.fill(
                               child: CustomPaint(
                                 painter: LinePainter(kalibrasi, Colors.red),
                               ),
                             ),
 
-                          // 🔵 UKUR
-                          if (ukur.length >= 2)
+                          // 🔵 UKUR PANJANG
+                          if (ukurPanjang.length >= 2)
                             Positioned.fill(
                               child: CustomPaint(
-                                painter: LinePainter(ukur, Colors.blue),
+                                painter: LinePainter(ukurPanjang, Colors.blue),
                               ),
                             ),
 
-                          // 🔴 TITIK KALIBRASI
-                          ...kalibrasi.asMap().entries.map(
-                              (e) => titik(e.value, Colors.red, e.key, true)),
+                          // 🟢 UKUR TINGGI
+                          if (ukurTinggi.length >= 2)
+                            Positioned.fill(
+                              child: CustomPaint(
+                                painter: LinePainter(ukurTinggi, Colors.green),
+                              ),
+                            ),
 
-                          // 🔵 TITIK UKUR
-                          ...ukur.asMap().entries.map(
-                              (e) => titik(e.value, Colors.blue, e.key, false)),
+                          // 🔵 UKUR LINGKAR
+                          if (ukurLingkar.length >= 2)
+                            Positioned.fill(
+                              child: CustomPaint(
+                                painter: LinePainter(ukurLingkar, Colors.blue),
+                              ),
+                            ),
+
+                          // Titik Kalibrasi (Hanya tampil saat Step 0)
+                          if (currentStep == 0)
+                            ...kalibrasi.asMap().entries.map(
+                                (e) => titik(e.value, Colors.red, e.key, 0)),
+
+                          // Titik Panjang (Biru)
+                          ...ukurPanjang.asMap().entries.map(
+                              (e) => titik(e.value, Colors.blue, e.key, 1)),
+
+                          // Titik Tinggi (Hijau)
+                          ...ukurTinggi.asMap().entries.map(
+                              (e) => titik(e.value, Colors.green, e.key, 2)),
+
+                          // Titik Lingkar (Biru)
+                          ...ukurLingkar.asMap().entries.map(
+                              (e) => titik(e.value, Colors.blue, e.key, 3)),
                         ],
                       ),
                     ),
@@ -387,8 +486,8 @@ class _MeasurementScreenState extends State<MeasurementScreen> {
             ),
           ),
 
-          // 📏 ACUAN KALIBRASI & PREVIEW HASIL
-          if (!isKalibrasi && kalibrasiCm != null)
+          // 📏 PREVIEW HASIL UKUR
+          if (currentStep > 0 && kalibrasiCm != null)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
               child: Column(
@@ -410,18 +509,44 @@ class _MeasurementScreenState extends State<MeasurementScreen> {
                     ),
                   ),
                   const SizedBox(height: 6),
-                  Text(
-                    cmPreview == null
-                        ? "Hasil: -"
-                        : widget.isCurveMode
-                            ? "Lingkar Dada: ${cmPreview.toStringAsFixed(2)} cm"
-                            : "Panjang Badan: ${cmPreview.toStringAsFixed(2)} cm",
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: _colorDarkTeal,
+                  if (widget.isCurveMode)
+                    Text(
+                      lingkarCmPreview == null
+                          ? "Lingkar Dada: -"
+                          : "Lingkar Dada: ${lingkarCmPreview.toStringAsFixed(2)} cm",
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: _colorDarkTeal,
+                      ),
+                    )
+                  else
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          panjangCmPreview == null
+                              ? "PB: -"
+                              : "PB: ${panjangCmPreview.toStringAsFixed(1)} cm",
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.blue,
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Text(
+                          tinggiCmPreview == null
+                              ? "TB: -"
+                              : "TB: ${tinggiCmPreview.toStringAsFixed(1)} cm",
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.green,
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
                 ],
               ),
             ),
@@ -477,9 +602,13 @@ class _MeasurementScreenState extends State<MeasurementScreen> {
                       ),
                       padding: const EdgeInsets.symmetric(vertical: 14),
                     ),
-                    child: const Text(
-                      "Lanjut",
-                      style: TextStyle(fontWeight: FontWeight.bold),
+                    child: Text(
+                      currentStep == 0
+                          ? "Lanjut"
+                          : currentStep == 1 && !widget.isCurveMode
+                              ? "Lanjut TB"
+                              : "Selesai",
+                      style: const TextStyle(fontWeight: FontWeight.bold),
                     ),
                   ),
                 ),
@@ -492,7 +621,7 @@ class _MeasurementScreenState extends State<MeasurementScreen> {
   }
 
   // ================= TITIK =================
-  Widget titik(Offset p, Color color, int index, bool isKalib) {
+  Widget titik(Offset p, Color color, int index, int type) {
     const double pointSize = 12.0;
 
     return Positioned(
@@ -504,11 +633,14 @@ class _MeasurementScreenState extends State<MeasurementScreen> {
 
           setState(() {
             Offset delta = details.delta / scale;
-
-            if (isKalib) {
+            if (type == 0) {
               kalibrasi[index] += delta;
-            } else {
-              ukur[index] += delta;
+            } else if (type == 1) {
+              ukurPanjang[index] += delta;
+            } else if (type == 2) {
+              ukurTinggi[index] += delta;
+            } else if (type == 3) {
+              ukurLingkar[index] += delta;
             }
           });
         },
@@ -532,7 +664,7 @@ class _MeasurementScreenState extends State<MeasurementScreen> {
   }
 }
 
-// ================= LINE =================
+// ================= LINE PAINTER =================
 class LinePainter extends CustomPainter {
   final List<Offset> points;
   final Color color;

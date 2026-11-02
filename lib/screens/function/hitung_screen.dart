@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../utils/calculator.dart';
 import '../../database/db_helper.dart';
-import '../../models/sapi_model.dart'; // 🔥 Import SapiModel
+import '../../models/sapi_model.dart';
 import 'measurement_screen.dart';
 
 import 'package:image_picker/image_picker.dart';
@@ -10,7 +10,6 @@ import 'dart:io';
 // ================= WARNA TEMA =================
 const Color _colorDarkTeal = Color(0xFF1C7482);
 const Color _colorLightCyan = Color(0xFFD4F9F9);
-// const Color _colorMediumTeal = Color(0xFF1BAAB4);
 const Color _colorBrightCyan = Color(0xFF38D0D8);
 
 class HitungScreen extends StatefulWidget {
@@ -26,11 +25,21 @@ class _HitungScreenState extends State<HitungScreen> {
   final TextEditingController namaController = TextEditingController();
   final TextEditingController lingkarController = TextEditingController();
   final TextEditingController panjangController = TextEditingController();
+  final TextEditingController tinggiController = TextEditingController(); // 🔥 Controller Baru
 
   double hasil = 0;
 
   File? fotoDepan;
   File? fotoSamping;
+
+  @override
+  void dispose() {
+    namaController.dispose();
+    lingkarController.dispose();
+    panjangController.dispose();
+    tinggiController.dispose();
+    super.dispose();
+  }
 
   // ================= VALIDATOR =================
   String? validateText(String? value) {
@@ -44,20 +53,25 @@ class _HitungScreenState extends State<HitungScreen> {
     return null;
   }
 
-  // ================= HITUNG =================
+  // ================= HITUNG (RUMUS BARU) =================
   void hitung() {
     if (!_formKey.currentState!.validate()) return;
 
     double lingkar = double.parse(lingkarController.text);
     double panjang = double.parse(panjangController.text);
+    double tinggi = double.parse(tinggiController.text);
 
     setState(() {
-      hasil = hitungBeratSapi(lingkar, panjang);
+      hasil = hitungBeratSapi(
+        lingkarDada: lingkar,
+        panjangBadan: panjang,
+        tinggiBadan: tinggi,
+      );
     });
   }
 
   // ================= SIMPAN (SAPI MODEL) =================
-void simpanData() async {
+  void simpanData() async {
     if (!_formKey.currentState!.validate()) return;
 
     if (hasil == 0) {
@@ -71,12 +85,13 @@ void simpanData() async {
       namaSapi: namaController.text,
       lingkarDada: double.parse(lingkarController.text),
       panjangBadan: double.parse(panjangController.text),
+      tinggiBadan: double.parse(tinggiController.text), // 🔥 Simpan tinggi badan
       berat: hasil,
       tanggal: DateTime.now().toIso8601String(),
     );
 
     DBHelper db = DBHelper();
-    await db.insertSapi(sapiBaru); // 🔥 Panggil insertSapi
+    await db.insertSapi(sapiBaru);
 
     if (!mounted) return;
 
@@ -122,7 +137,7 @@ void simpanData() async {
               width: double.infinity,
               child: ElevatedButton(
                 onPressed: () {
-                  Navigator.pop(context); // Tutup Dialog
+                  Navigator.pop(context);
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: _colorBrightCyan,
@@ -166,6 +181,7 @@ void simpanData() async {
         }
       });
 
+      // Navigator mengarah ke screen pengukuran
       final result = await Navigator.push(
         context,
         MaterialPageRoute(
@@ -181,11 +197,23 @@ void simpanData() async {
       if (result != null) {
         setState(() {
           if (isLingkar) {
-            lingkarController.text =
-                (result as double).toStringAsFixed(2);
+            // Jika hasil lingkar dada berupa double tunggal
+            if (result is double) {
+              lingkarController.text = result.toStringAsFixed(2);
+            }
           } else {
-            panjangController.text =
-                (result as double).toStringAsFixed(2);
+            // Jika hasil samping mengembalikan Map { 'panjang': double, 'tinggi': double }
+            if (result is Map<String, double>) {
+              if (result['panjang'] != null) {
+                panjangController.text = result['panjang']!.toStringAsFixed(2);
+              }
+              if (result['tinggi'] != null) {
+                tinggiController.text = result['tinggi']!.toStringAsFixed(2);
+              }
+            } else if (result is double) {
+              // Fallback jika measurement screen lama masih return 1 nilai panjang
+              panjangController.text = result.toStringAsFixed(2);
+            }
           }
         });
       }
@@ -200,7 +228,7 @@ void simpanData() async {
       appBar: AppBar(
         backgroundColor: _colorDarkTeal,
         elevation: 0,
-        iconTheme: const IconThemeData(color: _colorDarkTeal),
+        iconTheme: const IconThemeData(color: Colors.white),
         title: const Text(
           "Mooasure",
           style: TextStyle(
@@ -227,13 +255,29 @@ void simpanData() async {
 
                 const SizedBox(height: 20),
 
-                // ================= FORM PANJANG SAPI =================
-                _CustomInputField(
-                  label: "Panjang Sapi (opsional)",
-                  hint: "Masukan Panjang Sapi (cm)",
-                  controller: panjangController,
-                  type: TextInputType.number,
-                  validator: validateNumber,
+                // ================= FORM PANJANG & TINGGI (FOTO SAMPING) =================
+                Row(
+                  children: [
+                    Expanded(
+                      child: _CustomInputField(
+                        label: "Panjang Sapi",
+                        hint: "Panjang (cm)",
+                        controller: panjangController,
+                        type: TextInputType.number,
+                        validator: validateNumber,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _CustomInputField(
+                        label: "Tinggi Sapi",
+                        hint: "Tinggi (cm)",
+                        controller: tinggiController,
+                        type: TextInputType.number,
+                        validator: validateNumber,
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 12),
 
@@ -241,7 +285,7 @@ void simpanData() async {
                     ? _PhotoUploadBox(
                         title: "Tambahkan Foto Tampak Samping",
                         subtitle:
-                            "Pastikan untuk mengambil foto dengan\npenerangan yang jelas dan foto di ambil dalam\njarak 2 meter",
+                            "Ukur panjang & tinggi sapi sekaligus dalam\nsatu foto tampak samping (jarak 2 meter)",
                         onTap: () => openMeasurement(false),
                       )
                     : _ImageDisplayBox(
@@ -251,21 +295,21 @@ void simpanData() async {
 
                 const SizedBox(height: 20),
 
-                // ================= FORM LINGKAR DADA =================
+                // ================= FORM LINGKAR DADA (FOTO DEPAN) =================
                 _CustomInputField(
-                  label: "Lingkar Dada (opsional)",
+                  label: "Lingkar Dada",
                   hint: "Masukan Lingkar Dada Sapi (cm)",
                   controller: lingkarController,
                   type: TextInputType.number,
                   validator: validateNumber,
                 ),
                 const SizedBox(height: 12),
-                
+
                 fotoDepan == null
                     ? _PhotoUploadBox(
                         title: "Tambahkan Foto Tampak Depan",
                         subtitle:
-                            "Pastikan untuk mengambil foto dengan\npenerangan yang jelas dan foto di ambil dalam\njarak 2 meter",
+                            "Pastikan untuk mengambil foto dengan\npenerangan jelas dan jarak 2 meter",
                         onTap: () => openMeasurement(true),
                       )
                     : _ImageDisplayBox(
@@ -290,9 +334,10 @@ void simpanData() async {
                     child: const Text(
                       "Hitung",
                       style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold),
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
                 ),
@@ -301,36 +346,52 @@ void simpanData() async {
 
                 if (hasil > 0) ...[
                   Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 20),
                     decoration: BoxDecoration(
                       color: _colorLightCyan,
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: Row(
+                    child: Column(
                       children: [
-                        Expanded(
-                          child: _ResultItemBox(
-                            value: hasil.toStringAsFixed(0),
-                            unit: "kg",
-                            label: "Berat Badan",
-                          ),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _ResultItemBox(
+                                value: hasil.toStringAsFixed(2),
+                                unit: "kg",
+                                label: "Berat Badan",
+                              ),
+                            ),
+                            Expanded(
+                              child: _ResultItemBox(
+                                value: lingkarController.text,
+                                unit: "cm",
+                                label: "Lingkar Dada",
+                                alignment: CrossAxisAlignment.center,
+                              ),
+                            ),
+                          ],
                         ),
-                        Expanded(
-                          child: _ResultItemBox(
-                            value: lingkarController.text,
-                            unit: "cm",
-                            label: "Lingkar Dada",
-                            alignment: CrossAxisAlignment.center,
-                          ),
-                        ),
-                        Expanded(
-                          child: _ResultItemBox(
-                            value: panjangController.text,
-                            unit: "cm",
-                            label: "Panjang",
-                            alignment: CrossAxisAlignment.end,
-                          ),
+                        const Divider(height: 24, thickness: 0.5),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _ResultItemBox(
+                                value: panjangController.text,
+                                unit: "cm",
+                                label: "Panjang Badan",
+                              ),
+                            ),
+                            Expanded(
+                              child: _ResultItemBox(
+                                value: tinggiController.text,
+                                unit: "cm",
+                                label: "Tinggi Badan",
+                                alignment: CrossAxisAlignment.center,
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
@@ -396,9 +457,13 @@ class _CustomInputField extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label,
-            style: const TextStyle(
-                color: _colorDarkTeal, fontWeight: FontWeight.bold)),
+        Text(
+          label,
+          style: const TextStyle(
+            color: _colorDarkTeal,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
         const SizedBox(height: 8),
         TextFormField(
           controller: controller,
@@ -407,8 +472,8 @@ class _CustomInputField extends StatelessWidget {
           decoration: InputDecoration(
             hintText: hint,
             hintStyle: const TextStyle(
-              color: _colorBrightCyan, 
-              fontSize: 14, 
+              color: _colorBrightCyan,
+              fontSize: 14,
             ),
             filled: true,
             fillColor: _colorLightCyan,
@@ -441,7 +506,7 @@ class _PhotoUploadBox extends StatelessWidget {
       onTap: onTap,
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: 32),
+        padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 12),
         decoration: BoxDecoration(
           color: _colorLightCyan,
           borderRadius: BorderRadius.circular(12),
@@ -450,12 +515,19 @@ class _PhotoUploadBox extends StatelessWidget {
           children: [
             const Icon(Icons.camera_alt_outlined, color: _colorDarkTeal),
             const SizedBox(height: 8),
-            Text(title,
-                style: const TextStyle(
-                    color: _colorDarkTeal, fontWeight: FontWeight.bold)),
-            Text(subtitle,
-                textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 11)),
+            Text(
+              title,
+              style: const TextStyle(
+                color: _colorDarkTeal,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              subtitle,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 11),
+            ),
           ],
         ),
       ),
@@ -529,11 +601,22 @@ class _ResultItemBox extends StatelessWidget {
     return Column(
       crossAxisAlignment: alignment,
       children: [
-        Text("$value $unit",
-            style: const TextStyle(
-                fontWeight: FontWeight.bold, color: _colorDarkTeal)),
+        Text(
+          "$value $unit",
+          style: const TextStyle(
+            fontWeight: FontWeight.bold,
+            color: _colorDarkTeal,
+            fontSize: 15,
+          ),
+        ),
         const SizedBox(height: 4),
-        Text(label, style: const TextStyle(fontSize: 11)),
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 11,
+            color: Colors.black54,
+          ),
+        ),
       ],
     );
   }
