@@ -26,11 +26,11 @@ double hitungBeratSapi({
     return 0.0;
   }
 
-  // Persamaan regresi: BB = -782.0699 + 6.5562(LD) + 3.8259(PB) - 3.5292(TB)[cite: 1]
-  double berat = -782.0699 +
-      (6.5562 * lingkarDada) +
-      (3.8259 * panjangBadan) -
-      (3.5292 * tinggiBadan);
+  // Persamaan regresi: BB = -706.9511 + 3.4147(LD) + 3.1140(PB) - 0.7059(TB)[cite: 1]
+  double berat = -706.9511 +
+      (3.4147 * lingkarDada) +
+      (3.1140 * panjangBadan) -
+      (0.7059 * tinggiBadan);
 
   // Mencegah hasil negatif jika input pengukuran terlalu kecil
   return berat > 0 ? double.parse(berat.toStringAsFixed(2)) : 0.0;
