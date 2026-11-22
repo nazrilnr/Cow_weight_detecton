@@ -29,6 +29,15 @@ class _HitungScreenState extends State<HitungScreen> {
 
   double hasil = 0;
 
+  String? _poelTerpilih;
+
+  static const List<String> _listPoel = [
+    "Poel 01",
+    "Poel 02",
+    "Poel 03",
+    "Poel 04",
+  ];
+
   File? fotoDepan;
   File? fotoSamping;
 
@@ -253,6 +262,19 @@ class _HitungScreenState extends State<HitungScreen> {
                   validator: validateText,
                 ),
 
+                const SizedBox(height: 12),
+
+                _CustomDropdownField(
+                  label: "Poel",
+                  items: _listPoel,
+                  value: _poelTerpilih,
+                  onChanged: (value) {
+                    setState(() {
+                      _poelTerpilih = value;
+                    });
+                  },
+                ),
+
                 const SizedBox(height: 20),
 
                 // ================= FORM PANJANG & TINGGI (FOTO SAMPING) =================
@@ -474,6 +496,69 @@ class _CustomInputField extends StatelessWidget {
             hintStyle: const TextStyle(
               color: _colorBrightCyan,
               fontSize: 14,
+            ),
+            filled: true,
+            fillColor: _colorLightCyan,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: BorderSide.none,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ================= DROPDOWN FIELD =================
+class _CustomDropdownField extends StatelessWidget {
+  final String label;
+  final List<String> items;
+  final String? value;
+  final ValueChanged<String?> onChanged;
+
+  const _CustomDropdownField({
+    required this.label,
+    required this.items,
+    required this.value,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            color: _colorDarkTeal,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 8),
+        DropdownButtonFormField<String>(
+          value: value,
+          items: items
+              .map((e) => DropdownMenuItem<String>(
+                    value: e,
+                    child: Text(
+                      e,
+                      style: const TextStyle(
+                        color: _colorDarkTeal,
+                        fontWeight: FontWeight.normal,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ))
+              .toList(),
+          onChanged: onChanged,
+          decoration: InputDecoration(
+            hintText: "Pilih Poel",
+            hintStyle: const TextStyle(
+              color: _colorBrightCyan,
+              fontSize: 14,
+              fontWeight: FontWeight.normal,
             ),
             filled: true,
             fillColor: _colorLightCyan,
