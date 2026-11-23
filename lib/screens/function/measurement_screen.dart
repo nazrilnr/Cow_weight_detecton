@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'dart:io';
 import 'dart:math';
 
+import '../../utils/calculator.dart';
+
 // ================= WARNA =================
 const Color _colorDarkTeal = Color(0xFF1C7482);
 const Color _colorBrightCyan = Color(0xFF38D0D8);
@@ -250,8 +252,7 @@ class _MeasurementScreenState extends State<MeasurementScreen> {
         );
         return;
       }
-      double pixel = getPolylineLength(ukurLingkar);
-      double cm = pixel / pixelPerCm!;
+      double cm = getLingkarDadaCm(ukurLingkar);
       Navigator.pop(context, cm);
     } 
     // TAHAP 2 (UKUR PANJANG BADAN)
@@ -292,12 +293,33 @@ class _MeasurementScreenState extends State<MeasurementScreen> {
   }
 
   // ================= TEKS INSTRUKSI =================
+  // Lingkar dada penuh dari titik-titik yang ditandai pada foto tampak depan.
+  // Foto 2D hanya menampilkan sisi dada yang menghadap kamera, sehingga panjang
+  // polyline hanya ~setengah keliling. Gunakan lebar (2a) & tinggi (2b) dari
+  // bounding box titik, lalu hitung keliling elips penuh (Ramanujan).
+  double getLingkarDadaCm(List<Offset> pts) {
+    if (pts.length < 2 || pixelPerCm == null) return 0;
+    double minX = pts.first.dx, maxX = pts.first.dx;
+    double minY = pts.first.dy, maxY = pts.first.dy;
+    for (final p in pts) {
+      minX = min(minX, p.dx);
+      maxX = max(maxX, p.dx);
+      minY = min(minY, p.dy);
+      maxY = max(maxY, p.dy);
+    }
+    final a = (maxX - minX) / 2 / pixelPerCm!;
+    final b = (maxY - minY) / 2 / pixelPerCm!;
+    final elips = hitungLingkarDadaElips(a, b);
+    // Fallback jika titik hampir segaris (elips tidak valid): 2x panjang garis
+    return elips > 0 ? elips : 2 * getPolylineLength(pts) / pixelPerCm!;
+  }
+
   String getInstructionText() {
     if (currentStep == 0) {
       return "Langkah 1: Tandai 2 titik acuan kalibrasi pada objek";
     }
     if (widget.isCurveMode) {
-      return "Langkah 2: Buat titik-titik melingkari dada sapi";
+      return "Langkah 2: Tandai titik-titik mengikuti kontur dada sapi (kiri, atas, kanan, bawah)";
     }
     if (currentStep == 1) {
       return "Langkah 2: Tandai 2 titik PANJANG badan (bahu ke pinggul)";
@@ -314,7 +336,7 @@ class _MeasurementScreenState extends State<MeasurementScreen> {
 
     if (pixelPerCm != null) {
       if (widget.isCurveMode && ukurLingkar.length >= 2) {
-        lingkarCmPreview = getPolylineLength(ukurLingkar) / pixelPerCm!;
+        lingkarCmPreview = getLingkarDadaCm(ukurLingkar);
       }
       if (ukurPanjang.length >= 2) {
         panjangCmPreview = getDistance(ukurPanjang) / pixelPerCm!;
